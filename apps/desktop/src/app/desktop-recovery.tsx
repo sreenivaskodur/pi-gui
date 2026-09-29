@@ -81,7 +81,7 @@ export function DesktopStartupSurface({ state, onRetry, onRelaunch }: DesktopSta
         data-retrying={retrying ? "true" : "false"}
         data-failure={state.kind === "failed" ? state.failure.code : undefined}
       >
-        <div className="loading-card__eyebrow">pi-gui</div>
+        <div className="loading-card__eyebrow">PE - IQ</div>
         <h1>{copy.title}</h1>
         <p>{copy.body}</p>
         {showActions ? (
