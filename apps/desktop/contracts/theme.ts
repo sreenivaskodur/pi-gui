@@ -60,14 +60,14 @@ export const themePresets: readonly ThemePreset[] = [
   {
     id: "default",
     name: "Default",
-    description: "The pi-gui palette.",
+    description: "A single blue ramp with cool greys.",
     variants: {
       light: {
-        seed: seed("#ffffff", "#282825", "#526795", "#2ea043", "#c45666", "#d97706"),
+        seed: seed("#ffffff", "#0d1b2a", "#103a72", "#067647", "#b42318", "#b54708"),
         syntaxTheme: "github-light-default",
       },
       dark: {
-        seed: seed("#1d1d1c", "#eeeeea", "#9aaed8", "#40c977", "#e05467", "#d97706"),
+        seed: seed("#111823", "#eef3f9", "#4a90e2", "#47cd89", "#f97066", "#f79009"),
         syntaxTheme: "github-dark-default",
       },
     },
