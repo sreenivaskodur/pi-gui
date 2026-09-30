@@ -9,6 +9,11 @@ import {
 import { isRecord, normalizeSpec } from "./spec.ts";
 import { loadWorkflows, type WorkflowConfig } from "./workflow-loader.ts";
 
+/** Drops undefined-valued keys so the value is strict JSON (chord's requirement). */
+function jsonClean<T>(value: T): T {
+  return JSON.parse(JSON.stringify(value)) as T;
+}
+
 /*
  * Runtime dashboard store. Workflow definitions come from JSON config files
  * rescanned on demand, so they stay independent of the code; emitted results
@@ -77,13 +82,15 @@ export class DashboardStore {
     workflowId?: string,
   ): DashboardRecord {
     this.counter += 1;
-    const record: DashboardRecord = {
+    // Chord's replicated state requires strict JSON, so drop undefined-valued
+    // optional keys (subtitle, asOf, deltas, …) that the validator leaves in.
+    const record = jsonClean<DashboardRecord>({
       id: `dash_${this.counter}_${Date.now().toString(36)}`,
       createdAt: new Date().toISOString(),
       origin,
       workflowId,
       spec,
-    };
+    });
     this.update({
       dashboards: [...this.state.dashboards, record].slice(-DASHBOARD_HISTORY_LIMIT),
     });
@@ -113,13 +120,15 @@ export class DashboardStore {
         if (!isRecord(entry)) continue;
         const origin = entry.origin === "tool" ? "tool" : "workflow";
         if (typeof entry.id !== "string" || typeof entry.createdAt !== "string") continue;
-        dashboards.push({
-          id: entry.id,
-          createdAt: entry.createdAt,
-          origin,
-          workflowId: typeof entry.workflowId === "string" ? entry.workflowId : undefined,
-          spec: normalizeSpec(entry.spec),
-        });
+        dashboards.push(
+          jsonClean({
+            id: entry.id,
+            createdAt: entry.createdAt,
+            origin,
+            workflowId: typeof entry.workflowId === "string" ? entry.workflowId : undefined,
+            spec: normalizeSpec(entry.spec),
+          }),
+        );
       }
       this.state = { ...this.state, dashboards };
       this.counter = dashboards.length;
