@@ -3,6 +3,7 @@ import type { RuntimeSnapshot } from "@pi-gui/session-driver/runtime-types";
 import type {
   BrainComputeResult,
   BrainDeal,
+  BrainDetailResult,
   BrainModelSelection,
   BrainReportKind,
   BrainStat,
@@ -13,6 +14,7 @@ import type { PiDesktopApi } from "../../../contracts/ipc";
 import type { ScheduledTaskRecord, SessionRecord } from "../../../contracts/desktop-state";
 import { ModelSelector } from "../conversation/model-selector";
 import { AgentsIcon } from "../../ui/icons";
+import { BrainChart } from "./brain-chart";
 
 /*
  * The Ask/Portfolio/Deals/Agents section pages. Portfolio and Deals are
@@ -48,34 +50,48 @@ function StatRow({ stats }: { readonly stats: readonly BrainStat[] }) {
 }
 
 function FolderBar({
-  result,
+  folder,
+  chosen,
   busy,
+  canRun,
+  hasResult,
+  hasWorkspace,
   onChoose,
-  onReset,
-  onRerun,
+  onUseWorkspace,
+  onRun,
 }: {
-  readonly result: BrainComputeResult | null;
+  readonly folder: string | null;
+  readonly chosen: boolean;
   readonly busy: boolean;
+  readonly canRun: boolean;
+  readonly hasResult: boolean;
+  readonly hasWorkspace: boolean;
   readonly onChoose: () => void;
-  readonly onReset: () => void;
-  readonly onRerun: () => void;
+  readonly onUseWorkspace: () => void;
+  readonly onRun: () => void;
 }) {
   return (
     <div className="brain__folderbar">
       <span className="brain__folderbar-lab">Working folder</span>
-      <code className="brain__folder-path" title={result?.folder ?? undefined}>
-        {result?.folder ?? "None selected"}
+      <code className="brain__folder-path" title={folder ?? undefined}>
+        {chosen && folder ? folder : "None selected"}
       </code>
       <button className="brain__link-btn" type="button" disabled={busy} onClick={onChoose}>
         Choose folder…
       </button>
-      {result?.chosen ? (
-        <button className="brain__link-btn" type="button" disabled={busy} onClick={onReset}>
+      {hasWorkspace ? (
+        <button className="brain__link-btn" type="button" disabled={busy} onClick={onUseWorkspace}>
           Use workspace folder
         </button>
       ) : null}
-      <button className="brain__link-btn" type="button" disabled={busy} onClick={onRerun}>
-        {busy ? "Running…" : "Re-run workflow"}
+      <button
+        className="brain__run-btn"
+        type="button"
+        disabled={busy || !canRun}
+        onClick={onRun}
+        title={canRun ? undefined : "Choose a working folder and a model first"}
+      >
+        {busy ? "Running…" : hasResult ? "Re-run workflow" : "Run workflow"}
       </button>
     </div>
   );
@@ -117,7 +133,9 @@ function useBrainReport(
     },
     [api, kind, workspaceFolder, model],
   );
-  // Auto on open: returns the cached result, or runs the workflow if there is none.
+  // On open: fetch the cached result if any. The backend never runs the model
+  // here — a run happens only when the user presses Run (rerun) with a folder
+  // and model selected.
   useEffect(() => run(false), [run]);
   const afterFolderChange = useCallback(
     (change: Promise<unknown>) => {
@@ -130,12 +148,34 @@ function useBrainReport(
     () => afterFolderChange(api.brainPickDataFolder()),
     [afterFolderChange, api],
   );
-  const reset = useCallback(
-    () => afterFolderChange(api.brainSetDataFolder(null)),
-    [afterFolderChange, api],
+  const useWorkspace = useCallback(
+    () =>
+      workspaceFolder ? afterFolderChange(api.brainSetDataFolder(workspaceFolder)) : undefined,
+    [afterFolderChange, api, workspaceFolder],
   );
   const rerun = useCallback(() => run(true), [run]);
-  return { result, busy, choose, reset, rerun };
+  return { result, busy, choose, useWorkspace, rerun };
+}
+
+function SetupState({
+  folderReady,
+  modelReady,
+}: {
+  readonly folderReady: boolean;
+  readonly modelReady: boolean;
+}) {
+  const missing = [!folderReady && "a working folder", !modelReady && "a model"]
+    .filter(Boolean)
+    .join(" and ");
+  return (
+    <div className="brain__empty">
+      <b>Set up this workflow.</b>
+      <br />
+      {missing
+        ? `Choose ${missing} above, then Run workflow — it won't run on its own.`
+        : "Press Run workflow to generate this report."}
+    </div>
+  );
 }
 
 function RunningState({ folder }: { readonly folder: string | null }) {
@@ -188,27 +228,219 @@ function Trace({
   );
 }
 
-/** The model chosen for the workflow, defaulting to the runtime's default. */
-function useWorkflowModel(runtime: RuntimeSnapshot | undefined) {
+function useBrainDetail(
+  api: PiDesktopApi,
+  kind: BrainReportKind,
+  entity: string,
+  workspaceFolder: string | null,
+  model: BrainModelSelection | undefined,
+) {
+  const [result, setResult] = useState<BrainDetailResult | null>(null);
+  const [busy, setBusy] = useState(false);
+  const run = useCallback(
+    (rerun: boolean) => {
+      let cancelled = false;
+      setBusy(true);
+      api
+        .brainDetail(kind, entity, workspaceFolder, rerun, model ?? null)
+        .then((next) => {
+          if (!cancelled) setResult(next);
+        })
+        .catch((error: unknown) => {
+          if (!cancelled) {
+            setResult({
+              kind,
+              entity,
+              folder: workspaceFolder,
+              chosen: false,
+              error: error instanceof Error ? error.message : String(error),
+            });
+          }
+        })
+        .finally(() => {
+          if (!cancelled) setBusy(false);
+        });
+      return () => {
+        cancelled = true;
+      };
+    },
+    [api, kind, entity, workspaceFolder, model],
+  );
+  useEffect(() => run(false), [run]);
+  const rerun = useCallback(() => run(true), [run]);
+  return { result, busy, rerun };
+}
+
+interface DetailViewProps {
+  readonly api: PiDesktopApi;
+  readonly kind: BrainReportKind;
+  readonly entity: string;
+  readonly workspaceFolder: string | null;
+  readonly runtime: RuntimeSnapshot | undefined;
+  readonly onBack: () => void;
+}
+
+export function DetailView({
+  api,
+  kind,
+  entity,
+  workspaceFolder,
+  runtime,
+  onBack,
+}: DetailViewProps) {
+  const { model, provider, modelId, selected: modelReady, select } = useWorkflowModel();
+  const { result, busy, rerun } = useBrainDetail(api, kind, entity, workspaceFolder, model);
+  const detail = result?.detail;
+  const folderReady = result?.chosen === true;
+  const canRun = folderReady && modelReady;
+  return (
+    <section className="brain" data-testid="brain-detail">
+      <div className="brain__pad">
+        <button className="brain__back" type="button" onClick={onBack}>
+          ← Back to {kind === "portfolio" ? "Portfolio" : "Deals"}
+        </button>
+        <div className="brain__head">
+          <div className="grow">
+            <h1>{detail?.title ?? entity}</h1>
+            {detail?.subtitle ? <p>{detail.subtitle}</p> : null}
+          </div>
+          <div className="brain__head-controls">
+            <ModelSelector
+              runtime={runtime}
+              provider={provider}
+              modelId={modelId}
+              thinkingLevel={undefined}
+              dropdownPlacement="below"
+              onSetModel={select}
+              onSetThinking={() => undefined}
+            />
+            {detail?.status ? (
+              <span className={`brain__pill ${detail.statusTone ?? "warning"}`}>
+                <span className="ic">{detail.statusTone === "good" ? "✓" : "!"}</span>
+                {detail.status}
+              </span>
+            ) : null}
+            <button
+              className="brain__run-btn"
+              type="button"
+              disabled={busy || !canRun}
+              onClick={rerun}
+              title={canRun ? undefined : "Choose a model first"}
+            >
+              {busy ? "Running…" : detail ? "Re-run" : "Run workflow"}
+            </button>
+          </div>
+        </div>
+        {result?.trace ? <Trace steps={result.trace} model={result.model} /> : null}
+        {!detail ? (
+          busy ? (
+            <div className="brain__empty">
+              <b>Running the detail workflow…</b>
+              <br />
+              Asking the model to profile {entity}.
+            </div>
+          ) : result?.needsSetup ? (
+            <SetupState folderReady={folderReady} modelReady={modelReady} />
+          ) : result ? (
+            <div className="brain__empty">
+              <b>No detail.</b>
+              <br />
+              {result.error ?? "Re-run to generate this profile."}
+            </div>
+          ) : null
+        ) : (
+          <>
+            {detail.stats.length > 0 ? <StatRow stats={detail.stats} /> : null}
+            {detail.charts.map((chart, index) => (
+              <div className="brain__card" key={index}>
+                <div className="brain__card-head">
+                  <h3 className="grow">{chart.title}</h3>
+                </div>
+                <BrainChart chart={chart} />
+              </div>
+            ))}
+            {detail.rows.length > 0 ? (
+              <div className="brain__card">
+                <div className="brain__card-head">
+                  <h3 className="grow">Key facts</h3>
+                </div>
+                <table className="brain__tbl">
+                  <tbody>
+                    {detail.rows.map((row, index) => (
+                      <tr key={index}>
+                        <td className="left cell-muted">{row.label}</td>
+                        <td>{row.value}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : null}
+            {detail.notes.map((note, index) => (
+              <div className="brain__card" key={`note-${index}`}>
+                <div className="brain__card-head">
+                  <h3 className="grow">{note.heading}</h3>
+                </div>
+                {note.body.map((paragraph, pIndex) => (
+                  <p className="brain__note-p" key={pIndex}>
+                    {paragraph}
+                  </p>
+                ))}
+              </div>
+            ))}
+            {result?.folder ? (
+              <div className="brain__prov">workflow · analysed {result.folder}</div>
+            ) : null}
+          </>
+        )}
+      </div>
+    </section>
+  );
+}
+
+/**
+ * The model the user selects for the workflow. There is no implicit default —
+ * a workflow only runs once a model is explicitly chosen (`selected`).
+ */
+function useWorkflowModel() {
   const [model, setModel] = useState<BrainModelSelection | undefined>(undefined);
-  const provider = model?.provider ?? runtime?.settings.defaultProvider;
-  const modelId = model?.modelId ?? runtime?.settings.defaultModelId;
   const select = useCallback((nextProvider: string, nextModelId: string) => {
     setModel({ provider: nextProvider, modelId: nextModelId });
   }, []);
-  return { model, provider, modelId, select };
+  return {
+    model,
+    provider: model?.provider,
+    modelId: model?.modelId,
+    selected: model !== undefined,
+    select,
+  };
 }
 
 export function PortfolioPage({ api, workspaceFolder, runtime }: PageProps) {
-  const { model, provider, modelId, select } = useWorkflowModel(runtime);
-  const { result, busy, choose, reset, rerun } = useBrainReport(
+  const { model, provider, modelId, selected: modelReady, select } = useWorkflowModel();
+  const { result, busy, choose, useWorkspace, rerun } = useBrainReport(
     api,
     "portfolio",
     workspaceFolder,
     model,
   );
+  const [openEntity, setOpenEntity] = useState<string | null>(null);
   const portfolio = result?.portfolio;
+  const folderReady = result?.chosen === true;
+  const canRun = folderReady && modelReady;
   let logoIndex = -1;
+  if (openEntity) {
+    return (
+      <DetailView
+        api={api}
+        kind="portfolio"
+        entity={openEntity}
+        workspaceFolder={workspaceFolder}
+        runtime={runtime}
+        onBack={() => setOpenEntity(null)}
+      />
+    );
+  }
   return (
     <section className="brain" data-testid="brain-portfolio">
       <div className="brain__pad">
@@ -232,11 +464,23 @@ export function PortfolioPage({ api, workspaceFolder, runtime }: PageProps) {
             ) : null}
           </div>
         </div>
-        <FolderBar result={result} busy={busy} onChoose={choose} onReset={reset} onRerun={rerun} />
+        <FolderBar
+          folder={result?.folder ?? null}
+          chosen={folderReady}
+          busy={busy}
+          canRun={canRun}
+          hasResult={Boolean(portfolio)}
+          hasWorkspace={workspaceFolder !== null}
+          onChoose={choose}
+          onUseWorkspace={useWorkspace}
+          onRun={rerun}
+        />
         {result?.trace ? <Trace steps={result.trace} model={result.model} /> : null}
         {!portfolio ? (
           busy ? (
             <RunningState folder={result?.folder ?? workspaceFolder} />
+          ) : result?.needsSetup ? (
+            <SetupState folderReady={folderReady} modelReady={modelReady} />
           ) : result ? (
             <EmptyState result={result} />
           ) : null
@@ -271,7 +515,11 @@ export function PortfolioPage({ api, workspaceFolder, runtime }: PageProps) {
                     {fund.companies.map((company) => {
                       logoIndex += 1;
                       return (
-                        <tr key={company.name}>
+                        <tr
+                          key={company.name}
+                          className="click"
+                          onClick={() => setOpenEntity(company.name)}
+                        >
                           <td>
                             <div className="co-cell">
                               <span
@@ -329,9 +577,17 @@ function VarianceCell({ value }: { readonly value: number | null }) {
   return <td className={value >= 0 ? "num-pos" : "num-neg"}>{signedPct(value)}</td>;
 }
 
-function DealCard({ deal, index }: { readonly deal: BrainDeal; readonly index: number }) {
+function DealCard({
+  deal,
+  index,
+  onOpen,
+}: {
+  readonly deal: BrainDeal;
+  readonly index: number;
+  readonly onOpen: () => void;
+}) {
   return (
-    <div className="deal-card">
+    <button className="deal-card deal-card--click" type="button" onClick={onOpen}>
       <div className="deal-card__top">
         <span className="deal-card__logo" style={{ background: logoColor(index) }}>
           {deal.tag}
@@ -374,19 +630,34 @@ function DealCard({ deal, index }: { readonly deal: BrainDeal; readonly index: n
           </div>
         ))}
       </div>
-    </div>
+    </button>
   );
 }
 
 export function DealsPage({ api, workspaceFolder, runtime }: PageProps) {
-  const { model, provider, modelId, select } = useWorkflowModel(runtime);
-  const { result, busy, choose, reset, rerun } = useBrainReport(
+  const { model, provider, modelId, selected: modelReady, select } = useWorkflowModel();
+  const { result, busy, choose, useWorkspace, rerun } = useBrainReport(
     api,
     "deals",
     workspaceFolder,
     model,
   );
+  const [openEntity, setOpenEntity] = useState<string | null>(null);
   const deals = result?.deals;
+  const folderReady = result?.chosen === true;
+  const canRun = folderReady && modelReady;
+  if (openEntity) {
+    return (
+      <DetailView
+        api={api}
+        kind="deals"
+        entity={openEntity}
+        workspaceFolder={workspaceFolder}
+        runtime={runtime}
+        onBack={() => setOpenEntity(null)}
+      />
+    );
+  }
   return (
     <section className="brain" data-testid="brain-deals">
       <div className="brain__pad">
@@ -412,11 +683,23 @@ export function DealsPage({ api, workspaceFolder, runtime }: PageProps) {
             ) : null}
           </div>
         </div>
-        <FolderBar result={result} busy={busy} onChoose={choose} onReset={reset} onRerun={rerun} />
+        <FolderBar
+          folder={result?.folder ?? null}
+          chosen={folderReady}
+          busy={busy}
+          canRun={canRun}
+          hasResult={Boolean(deals)}
+          hasWorkspace={workspaceFolder !== null}
+          onChoose={choose}
+          onUseWorkspace={useWorkspace}
+          onRun={rerun}
+        />
         {result?.trace ? <Trace steps={result.trace} model={result.model} /> : null}
         {!deals ? (
           busy ? (
             <RunningState folder={result?.folder ?? workspaceFolder} />
+          ) : result?.needsSetup ? (
+            <SetupState folderReady={folderReady} modelReady={modelReady} />
           ) : result ? (
             <EmptyState result={result} />
           ) : null
@@ -425,7 +708,12 @@ export function DealsPage({ api, workspaceFolder, runtime }: PageProps) {
             <StatRow stats={deals.stats} />
             <div className="brain__grid cards">
               {deals.deals.map((deal, index) => (
-                <DealCard deal={deal} index={index} key={deal.name} />
+                <DealCard
+                  deal={deal}
+                  index={index}
+                  key={deal.name}
+                  onOpen={() => setOpenEntity(deal.name)}
+                />
               ))}
             </div>
             {result?.folder ? (

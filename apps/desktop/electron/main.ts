@@ -1100,6 +1100,8 @@ app
         probeCustomProviderModels,
         brainCompute: (kind, workspaceFolder, rerun, model) =>
           brainService.compute(kind, workspaceFolder, { rerun, model }),
+        brainDetail: (kind, entity, workspaceFolder, rerun, model) =>
+          brainService.computeDetail(kind, entity, workspaceFolder, { rerun, model }),
         brainPickDataFolder: (window) => brainService.pickFolder(window),
         brainSetDataFolder: (folder) => brainService.setFolder(folder),
         notificationPermission: () => notificationPermissionService,

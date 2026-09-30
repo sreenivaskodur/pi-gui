@@ -264,6 +264,74 @@
   width: 100%;
   cursor: default;
 }
+.deal-card--click {
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+  display: block;
+}
+.deal-card--click:hover {
+  border-color: var(--line-strong);
+  box-shadow: var(--shadow-sm);
+}
+
+.brain__back {
+  background: none;
+  border: 0;
+  color: var(--accent);
+  cursor: pointer;
+  font: inherit;
+  font-size: 12.5px;
+  padding: 0 0 12px;
+}
+.brain__back:hover {
+  text-decoration: underline;
+}
+.brain__note-p {
+  margin: 0 0 10px;
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.55;
+}
+.brain__note-p:last-child {
+  margin-bottom: 0;
+}
+
+.brain-chart svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+.brain-chart__legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin-bottom: 8px;
+  font-size: 12px;
+  color: var(--text);
+}
+.brain-chart__legend i {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  border-radius: 2px;
+  margin-right: 6px;
+  vertical-align: -1px;
+}
+.brain-chart__legend i.line {
+  height: 2px;
+  border-radius: 1px;
+  width: 14px;
+  vertical-align: 3px;
+}
+.brain-chart__grid {
+  stroke: var(--line);
+  stroke-width: 1;
+}
+.brain-chart__lab {
+  font-size: 10.5px;
+  fill: var(--muted);
+}
 .deal-card__top {
   display: flex;
   align-items: flex-start;
@@ -460,6 +528,25 @@
   opacity: 0.5;
   cursor: default;
   text-decoration: none;
+}
+.brain__run-btn {
+  margin-left: auto;
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 550;
+  padding: 5px 12px;
+  border-radius: var(--radius-md);
+  background: var(--accent);
+  color: var(--main);
+  border: 0;
+  cursor: pointer;
+}
+.brain__run-btn:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--accent) 88%, var(--text-strong));
+}
+.brain__run-btn:disabled {
+  opacity: 0.45;
+  cursor: default;
 }
 .brain__empty {
   border: 1px dashed var(--line-strong);

@@ -15,6 +15,7 @@ import type {
 import type { ClipboardImageRead } from "./composer-attachments";
 import type {
   BrainComputeResult,
+  BrainDetailResult,
   BrainFolderState,
   BrainModelSelection,
   BrainReportKind,
@@ -200,6 +201,7 @@ export const desktopIpc = {
   openExternal: "app:open-external",
   relaunchApplication: "pi-gui:relaunch-application",
   brainCompute: "pi-gui:brain-compute",
+  brainDetail: "pi-gui:brain-detail",
   brainPickDataFolder: "pi-gui:brain-pick-data-folder",
   brainSetDataFolder: "pi-gui:brain-set-data-folder",
 } as const;
@@ -668,6 +670,13 @@ export interface PiDesktopApi {
     rerun?: boolean,
     model?: BrainModelSelection | null,
   ): Promise<BrainComputeResult>;
+  brainDetail(
+    kind: BrainReportKind,
+    entity: string,
+    workspaceFolder: string | null,
+    rerun?: boolean,
+    model?: BrainModelSelection | null,
+  ): Promise<BrainDetailResult>;
   brainPickDataFolder(): Promise<BrainFolderState>;
   brainSetDataFolder(folder: string | null): Promise<BrainFolderState>;
   getState(): Promise<DesktopAppState>;

@@ -28,6 +28,7 @@ import {
 import type { ClipboardImageRead } from "../contracts/composer-attachments";
 import type {
   BrainComputeResult,
+  BrainDetailResult,
   BrainFolderState,
   BrainModelSelection,
   BrainReportKind,
@@ -121,6 +122,21 @@ contextBridge.exposeInMainWorld("piApp", {
       rerun ?? false,
       model ?? null,
     ) as Promise<BrainComputeResult>,
+  brainDetail: (
+    kind: BrainReportKind,
+    entity: string,
+    workspaceFolder: string | null,
+    rerun?: boolean,
+    model?: BrainModelSelection | null,
+  ) =>
+    ipcRenderer.invoke(
+      desktopIpc.brainDetail,
+      kind,
+      entity,
+      workspaceFolder,
+      rerun ?? false,
+      model ?? null,
+    ) as Promise<BrainDetailResult>,
   brainPickDataFolder: () =>
     ipcRenderer.invoke(desktopIpc.brainPickDataFolder) as Promise<BrainFolderState>,
   brainSetDataFolder: (folder: string | null) =>

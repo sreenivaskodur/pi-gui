@@ -13,11 +13,14 @@ import { dialog } from "electron";
 import { generateAgentReply } from "@pi-gui/pi-sdk-driver";
 import {
   BRAIN_SYSTEM_PROMPT,
+  buildBrainDetailPrompt,
   buildBrainPrompt,
   extractJsonObject,
   parseBrainDeals,
+  parseBrainDetail,
   parseBrainPortfolio,
   type BrainComputeResult,
+  type BrainDetailResult,
   type BrainFolderState,
   type BrainModelSelection,
   type BrainReportKind,
@@ -42,6 +45,7 @@ export class BrainService {
   private readonly folderStatePath: string;
   private readonly cachePath: string;
   private cache = new Map<string, BrainComputeResult>();
+  private detailCache = new Map<string, BrainDetailResult>();
 
   constructor(
     userDataDir: string,
@@ -90,24 +94,27 @@ export class BrainService {
       readonly signal?: AbortSignal;
     } = {},
   ): Promise<BrainComputeResult> {
-    const folder = this.chosenFolder ?? workspaceFolder;
-    const base: BrainComputeResult = { kind, folder, chosen: this.chosenFolder !== null };
-    if (!folder) {
-      return { ...base, error: "Choose a working folder for the brain to analyse." };
-    }
-    const key = `${kind}:${folder}`;
-    if (!options.rerun) {
+    const chosen = this.chosenFolder;
+    const folder = chosen ?? workspaceFolder;
+    const base: BrainComputeResult = { kind, folder, chosen: chosen !== null };
+    const key = folder ? `${kind}:${folder}` : null;
+    if (key && !options.rerun) {
       const cached = this.cache.get(key);
       if (cached) return cached;
     }
+    // The workflow only runs when the user has explicitly chosen a folder and a
+    // model — never automatically. Otherwise report that setup is still needed.
+    if (chosen === null || !options.model) {
+      return { ...base, needsSetup: true };
+    }
     let snapshot: { text: string; files: number };
     try {
-      snapshot = this.snapshotFolder(folder);
+      snapshot = this.snapshotFolder(chosen);
     } catch (error) {
       return { ...base, error: error instanceof Error ? error.message : String(error) };
     }
     const reply = await generateAgentReply(
-      { path: folder, workspaceId: folder },
+      { path: chosen, workspaceId: chosen },
       {
         systemPrompt: BRAIN_SYSTEM_PROMPT,
         prompt: buildBrainPrompt(kind, snapshot.text),
@@ -159,8 +166,79 @@ export class BrainService {
         error: error instanceof Error ? error.message : String(error),
       };
     }
-    this.cache.set(key, result);
-    this.persistCache();
+    if (key) {
+      this.cache.set(key, result);
+      this.persistCache();
+    }
+    return result;
+  }
+
+  /** Runs the detail workflow for one company/deal; caches per entity. */
+  async computeDetail(
+    kind: BrainReportKind,
+    entity: string,
+    workspaceFolder: string | null,
+    options: { readonly rerun?: boolean; readonly model?: BrainModelSelection | null } = {},
+  ): Promise<BrainDetailResult> {
+    const chosen = this.chosenFolder;
+    const folder = chosen ?? workspaceFolder;
+    const base: BrainDetailResult = { kind, entity, folder, chosen: chosen !== null };
+    const key = folder ? `${kind}:${entity}:${folder}` : null;
+    if (key && !options.rerun) {
+      const cached = this.detailCache.get(key);
+      if (cached) return cached;
+    }
+    if (chosen === null || !options.model) {
+      return { ...base, needsSetup: true };
+    }
+    let snapshot: { text: string; files: number };
+    try {
+      snapshot = this.snapshotFolder(chosen);
+    } catch (error) {
+      return { ...base, error: error instanceof Error ? error.message : String(error) };
+    }
+    const reply = await generateAgentReply(
+      { path: chosen, workspaceId: chosen },
+      {
+        systemPrompt: BRAIN_SYSTEM_PROMPT,
+        prompt: buildBrainDetailPrompt(kind, entity, snapshot.text),
+        model: options.model ?? undefined,
+      },
+      { agentDir: this.agentDir },
+    );
+    if (!reply.text) return { ...base, error: reply.error ?? "The model returned no output." };
+    const trace: BrainTraceStep[] = [
+      {
+        label: "Scanned working folder",
+        detail:
+          snapshot.files > 0
+            ? `${snapshot.files} data file${snapshot.files === 1 ? "" : "s"}, ${snapshot.text.length.toLocaleString()} chars`
+            : "no readable data files — generated demo data",
+      },
+      {
+        label: `Ran ${reply.model ?? "the model"}`,
+        detail: `detail for ${entity}`,
+      },
+    ];
+    if (reply.reasoning)
+      trace.push({ label: "Model reasoning", detail: reply.reasoning.slice(0, 600) });
+    let result: BrainDetailResult;
+    try {
+      const detail = parseBrainDetail(extractJsonObject(reply.text));
+      trace.push({
+        label: "Parsed detail",
+        detail: `${detail.stats.length} stats · ${detail.charts.length} charts`,
+      });
+      result = { ...base, ranAt: new Date().toISOString(), model: reply.model, trace, detail };
+    } catch (error) {
+      return {
+        ...base,
+        model: reply.model,
+        trace,
+        error: error instanceof Error ? error.message : String(error),
+      };
+    }
+    if (key) this.detailCache.set(key, result);
     return result;
   }
 

@@ -12,6 +12,7 @@ import {
 } from "../../contracts/composer-attachments";
 import type {
   BrainComputeResult,
+  BrainDetailResult,
   BrainFolderState,
   BrainModelSelection,
   BrainReportKind,
@@ -229,6 +230,13 @@ export interface DesktopIpcCapabilities {
     rerun: boolean,
     model: BrainModelSelection | null,
   ) => Promise<BrainComputeResult>;
+  readonly brainDetail: (
+    kind: BrainReportKind,
+    entity: string,
+    workspaceFolder: string | null,
+    rerun: boolean,
+    model: BrainModelSelection | null,
+  ) => Promise<BrainDetailResult>;
   readonly brainPickDataFolder: (window: BrowserWindow) => Promise<BrainFolderState>;
   readonly brainSetDataFolder: (folder: string | null) => BrainFolderState;
 }
@@ -340,6 +348,35 @@ export function registerDesktopIpc({
       }
       return capabilities.brainCompute(
         rawKind,
+        rawWorkspaceFolder,
+        rawRerun === true,
+        parseBrainModel(rawModel),
+      );
+    },
+  );
+  ipcMain.handle(
+    desktopIpc.brainDetail,
+    (
+      event,
+      rawKind: unknown,
+      rawEntity: unknown,
+      rawWorkspaceFolder: unknown,
+      rawRerun: unknown,
+      rawModel: unknown,
+    ) => {
+      windows.windowForSender(event.sender);
+      if (rawKind !== "portfolio" && rawKind !== "deals") {
+        throw new TypeError("kind must be portfolio or deals");
+      }
+      if (typeof rawEntity !== "string" || rawEntity.trim() === "") {
+        throw new TypeError("entity must be a non-empty string");
+      }
+      if (rawWorkspaceFolder !== null && typeof rawWorkspaceFolder !== "string") {
+        throw new TypeError("workspaceFolder must be a path string or null");
+      }
+      return capabilities.brainDetail(
+        rawKind,
+        rawEntity,
         rawWorkspaceFolder,
         rawRerun === true,
         parseBrainModel(rawModel),
