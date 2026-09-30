@@ -24,6 +24,7 @@ import { DashboardStore } from "./store.ts";
  */
 
 const bundledWorkflowsDir = fileURLToPath(new URL("./workflows/", import.meta.url));
+const sampleDataDir = fileURLToPath(new URL("./sample-data/", import.meta.url));
 
 function summarize(spec: DashboardSpec): string {
   const lines = [
@@ -48,6 +49,8 @@ export default function portfolioDashboardsExtension(pi: ExtensionAPI): void {
       join(agentDir, "dashboards"),
       ...(workspaceDir ? [join(workspaceDir, ".pi", "dashboards")] : []),
     ],
+    sampleDataFolder: sampleDataDir,
+    workspaceFolder: () => workspaceDir,
     cachePath: join(agentDir, "dashboards-cache.json"),
   });
 
@@ -131,6 +134,10 @@ export default function portfolioDashboardsExtension(pi: ExtensionAPI): void {
               context.abortSignal?.throwIfAborted();
               const record = store.emitWorkflow(request.workflowId);
               return { dashboardId: record.id };
+            },
+            async setWorkingFolder(request, context) {
+              context.abortSignal?.throwIfAborted();
+              store.setWorkingFolder(request.folder);
             },
           });
         },

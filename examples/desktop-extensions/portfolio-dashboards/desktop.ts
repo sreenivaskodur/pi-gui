@@ -94,7 +94,18 @@ const CSS = `
   padding:4px 9px;border-radius:999px;border:1px solid var(--hair);white-space:nowrap}
 .muted{color:var(--ink-muted)}
 .workflows{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-bottom:18px}
-.workflows .lab{font-size:11px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-muted);margin-right:2px}
+.workflows .lab,.folderbar .lab{font-size:11px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-muted);margin-right:2px}
+.folderbar{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-bottom:14px;
+  padding-bottom:14px;border-bottom:1px solid var(--hair)}
+.folder-path{font-size:11.5px;color:var(--ink-2);background:var(--surface-2);border:1px solid var(--hair);
+  border-radius:6px;padding:3px 8px;max-width:44ch;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.folder-tag{font-size:10.5px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-muted)}
+.folder-input{flex:1;min-width:160px;font:inherit;font-size:12.5px;color:var(--ink);background:var(--surface);
+  border:1px solid var(--hair-strong);border-radius:6px;padding:5px 9px}
+.folder-input::placeholder{color:var(--ink-muted)}
+.link-btn{font-size:12px;background:none;border:0;color:var(--accent);cursor:pointer;padding:4px 2px;font-family:inherit}
+.link-btn:hover{text-decoration:underline}
+.link-btn:disabled{opacity:.5;cursor:default;text-decoration:none}
 .chip{font-size:12px;padding:4px 10px;border-radius:999px;border:1px solid var(--hair);
   background:var(--surface-2);color:var(--ink-2);cursor:pointer;font-family:inherit}
 .chip:hover{border-color:var(--hair-strong);color:var(--ink)}
@@ -536,11 +547,20 @@ export async function mount(root: HTMLElement, host: DesktopViewContext): Promis
   root.replaceChildren(style, view);
   const cssVar: CssVar = (name) => view.style.getPropertyValue(name).trim();
 
-  let state: DashboardsState = { ready: false, error: null, workflows: [], dashboards: [] };
+  let state: DashboardsState = {
+    ready: false,
+    error: null,
+    workingFolder: "",
+    usingSampleData: true,
+    workspaceFolder: null,
+    workflows: [],
+    dashboards: [],
+  };
   let selected: string | null = null;
   let actionError = "";
   let pending = false;
   let disposed = false;
+  let folderDraft = "";
 
   const mountCharts = (record: DashboardRecord | undefined) => {
     if (!record) return;
@@ -559,11 +579,28 @@ export async function mount(root: HTMLElement, host: DesktopViewContext): Promis
     const workflows = state.workflows
       .map(
         (workflow) =>
-          `<button class="chip" data-workflow="${esc(workflow.id)}" title="${esc(workflow.description)}" ${
-            pending ? "disabled" : ""
-          }>${esc(workflow.label)}</button>`,
+          `<button class="chip" data-workflow="${esc(workflow.id)}" title="${esc(
+            `${workflow.description} (reads ${workflow.dataset})`,
+          )}" ${pending ? "disabled" : ""}>${esc(workflow.label)}</button>`,
       )
       .join("");
+    const workspaceButton =
+      state.workspaceFolder && state.workspaceFolder !== state.workingFolder
+        ? `<button class="link-btn" data-usews ${pending ? "disabled" : ""}>Use workspace folder</button>`
+        : "";
+    const sampleButton = state.usingSampleData
+      ? ""
+      : `<button class="link-btn" data-usesample ${pending ? "disabled" : ""}>Use sample data</button>`;
+    const folderBar = `<div class="folderbar">
+      <span class="lab">Working folder</span>
+      <code class="folder-path" title="${esc(state.workingFolder)}">${esc(state.workingFolder)}</code>
+      ${state.usingSampleData ? '<span class="folder-tag">sample data</span>' : ""}
+      <input class="folder-input" type="text" placeholder="Paste an absolute folder path…" ${
+        pending ? "disabled" : ""
+      } />
+      <button class="chip" data-setfolder ${pending ? "disabled" : ""}>Set</button>
+      ${workspaceButton}${sampleButton}
+    </div>`;
     const history = state.dashboards
       .map(
         (candidate) =>
@@ -581,13 +618,17 @@ export async function mount(root: HTMLElement, host: DesktopViewContext): Promis
         <div class="prov">${esc(record.spec.source ?? "emitted dashboard")} · ${esc(
           record.origin === "workflow" ? "pre-configured workflow" : "emit_dashboard tool",
         )} · ${esc(new Date(record.createdAt).toLocaleTimeString())}</div>`
-      : `<div class="empty"><b>No dashboards yet.</b><br>Run a workflow above, type /dashboard in the
-         composer, or ask the agent to publish data with the emit_dashboard tool.</div>`;
+      : `<div class="empty"><b>No dashboards yet.</b><br>Pick a working folder, then run a workflow
+         above (each computes from its data file), type /dashboard in the composer, or ask the agent
+         to publish data with the emit_dashboard tool.</div>`;
     view.innerHTML = `
+      ${folderBar}
       <div class="workflows"><span class="lab">Workflows</span>${workflows}</div>
       ${state.dashboards.length > 1 ? `<div class="workflows"><span class="lab">History</span>${history}</div>` : ""}
       ${errors ? `<p class="error" role="alert">${esc(errors)}</p>` : ""}
       ${bodyHtml}`;
+    const input = view.querySelector<HTMLInputElement>(".folder-input");
+    if (input) input.value = folderDraft;
     mountCharts(record);
   };
 
@@ -602,28 +643,12 @@ export async function mount(root: HTMLElement, host: DesktopViewContext): Promis
   });
   const service = binding.use(Dashboards);
 
-  view.addEventListener("click", (event) => {
-    const target = (event.target as HTMLElement).closest<HTMLElement>(
-      "[data-workflow],[data-select]",
-    );
-    if (!target || pending || disposed) return;
-    if (target.dataset.select) {
-      selected = target.dataset.select;
-      render();
-      return;
-    }
-    const workflowId = target.dataset.workflow!;
-    const requestId = [...crypto.getRandomValues(new Uint8Array(16))]
-      .map((byte) => byte.toString(16).padStart(2, "0"))
-      .join("");
+  const perform = (action: () => Promise<void>) => {
+    if (pending || disposed) return;
     pending = true;
     actionError = "";
     render();
-    service
-      .emitWorkflow({ workflowId, requestId }, BACKGROUND_CONTEXT)
-      .then((result) => {
-        selected = result.dashboardId;
-      })
+    action()
       .catch((reason: unknown) => {
         actionError = reason instanceof Error ? reason.message : String(reason);
       })
@@ -631,6 +656,49 @@ export async function mount(root: HTMLElement, host: DesktopViewContext): Promis
         pending = false;
         render();
       });
+  };
+
+  view.addEventListener("input", (event) => {
+    const input = (event.target as HTMLElement).closest<HTMLInputElement>(".folder-input");
+    if (input) folderDraft = input.value;
+  });
+
+  view.addEventListener("click", (event) => {
+    const target = (event.target as HTMLElement).closest<HTMLElement>(
+      "[data-workflow],[data-select],[data-setfolder],[data-usews],[data-usesample]",
+    );
+    if (!target || pending || disposed) return;
+    if (target.dataset.select !== undefined) {
+      selected = target.dataset.select;
+      render();
+      return;
+    }
+    if (target.dataset.setfolder !== undefined) {
+      const folder = folderDraft.trim();
+      if (folder === "") return;
+      perform(async () => {
+        await service.setWorkingFolder({ folder }, BACKGROUND_CONTEXT);
+        folderDraft = "";
+      });
+      return;
+    }
+    if (target.dataset.usews !== undefined) {
+      const folder = state.workspaceFolder;
+      if (folder) perform(() => service.setWorkingFolder({ folder }, BACKGROUND_CONTEXT));
+      return;
+    }
+    if (target.dataset.usesample !== undefined) {
+      perform(() => service.setWorkingFolder({ folder: null }, BACKGROUND_CONTEXT));
+      return;
+    }
+    const workflowId = target.dataset.workflow!;
+    const requestId = [...crypto.getRandomValues(new Uint8Array(16))]
+      .map((byte) => byte.toString(16).padStart(2, "0"))
+      .join("");
+    perform(async () => {
+      const result = await service.emitWorkflow({ workflowId, requestId }, BACKGROUND_CONTEXT);
+      selected = result.dashboardId;
+    });
   });
 
   let resizeTimer: ReturnType<typeof setTimeout> | undefined;

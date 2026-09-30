@@ -95,6 +95,8 @@ export interface WorkflowInfo {
   id: string;
   label: string;
   description: string;
+  /** The data file the workflow reads from the working folder. */
+  dataset: string;
 }
 
 export interface DashboardRecord {
@@ -102,12 +104,22 @@ export interface DashboardRecord {
   createdAt: string;
   origin: "workflow" | "tool";
   workflowId?: string;
+  /** Absolute path of the data file this dashboard was computed from. */
+  computedFrom?: string;
+  /** Number of data rows read. */
+  rows?: number;
   spec: DashboardSpec;
 }
 
 export interface DashboardsState {
   ready: boolean;
   error: string | null;
+  /** Absolute path of the folder workflows read their data from. */
+  workingFolder: string;
+  /** Whether the working folder is the bundled sample data. */
+  usingSampleData: boolean;
+  /** The session's workspace folder, offered as a one-click working folder. */
+  workspaceFolder: string | null;
   workflows: WorkflowInfo[];
   dashboards: DashboardRecord[];
 }
@@ -117,9 +129,15 @@ export interface EmitWorkflowRequest {
   requestId: string;
 }
 
+export interface SetWorkingFolderRequest {
+  /** Absolute folder path, or null to reset to the bundled sample data. */
+  folder: string | null;
+}
+
 export interface DashboardsService {
   state: ReplicatedState<DashboardsState>;
   emitWorkflow(request: EmitWorkflowRequest, context: Context): Promise<{ dashboardId: string }>;
+  setWorkingFolder(request: SetWorkingFolderRequest, context: Context): Promise<void>;
 }
 
 export const Dashboards = defineService<DashboardsService>(
