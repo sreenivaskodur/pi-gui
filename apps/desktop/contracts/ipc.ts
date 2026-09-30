@@ -657,7 +657,11 @@ export interface PiDesktopApi {
   platform: NodeJS.Platform;
   versions: NodeJS.ProcessVersions;
   ping(): Promise<string>;
-  brainCompute(kind: BrainReportKind, workspaceFolder: string | null): Promise<BrainComputeResult>;
+  brainCompute(
+    kind: BrainReportKind,
+    workspaceFolder: string | null,
+    rerun?: boolean,
+  ): Promise<BrainComputeResult>;
   brainPickDataFolder(): Promise<BrainFolderState>;
   brainSetDataFolder(folder: string | null): Promise<BrainFolderState>;
   getState(): Promise<DesktopAppState>;

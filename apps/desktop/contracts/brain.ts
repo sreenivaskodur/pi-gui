@@ -1,18 +1,15 @@
 /*
- * Brain report compute — pure and shared between the main process (which reads
- * the CSV files from the working folder) and the renderer (which renders the
- * result). No filesystem or Node access here, so both sides can import it.
+ * Brain report contract — pure and shared between the main process (which runs
+ * the workflow prompt through the model) and the renderer (which renders the
+ * result). No filesystem or Node access here.
  *
- * Portfolio reads companies.csv, Deals reads pipeline.csv. Change the CSV in
- * the working folder and the page recomputes.
+ * Portfolio and Deals are workflows: a preset prompt asks the model to inspect
+ * the working folder and return the raw facts as JSON. The derived numbers
+ * (variances, stats, stage/status) are computed deterministically here, so the
+ * model only supplies data it can find — not arithmetic.
  */
 
 export type BrainReportKind = "portfolio" | "deals";
-
-export const BRAIN_DATASETS: Record<BrainReportKind, string> = {
-  portfolio: "companies.csv",
-  deals: "pipeline.csv",
-};
 
 export const DEAL_STAGES = ["Screen", "IOI", "Diligence", "Exclusivity", "Sign"] as const;
 
@@ -73,97 +70,133 @@ export interface BrainFolderState {
 
 export interface BrainComputeResult {
   readonly kind: BrainReportKind;
-  readonly dataset: string;
-  /** The working folder resolved for this compute, or null if none is set. */
+  /** The working folder the workflow analysed, or null if none is set. */
   readonly folder: string | null;
   /** True when the folder is an explicit choice rather than the workspace. */
   readonly chosen: boolean;
-  /** Absolute path of the file read, when the compute succeeded. */
-  readonly computedFrom?: string;
-  readonly rows?: number;
+  /** ISO timestamp the workflow last produced this result. */
+  readonly ranAt?: string;
   readonly portfolio?: BrainPortfolio;
   readonly deals?: BrainDeals;
-  /** A human-readable reason the report could not be computed. */
+  /** A human-readable reason the workflow could not produce a result. */
   readonly error?: string;
 }
 
-/* ------------------------------------------------------------- CSV parsing */
-export interface DataTable {
-  readonly columns: readonly string[];
-  readonly rows: readonly Record<string, string>[];
+/* ------------------------------------------------------------ workflow prompts */
+export const BRAIN_SYSTEM_PROMPT = [
+  "You are a private-equity analyst assistant embedded in a desktop app.",
+  "You produce structured data for a dashboard from whatever source material you are given.",
+  "Respond with a single JSON object and nothing else — no prose, no markdown fences.",
+  "Use numbers (not strings) for all numeric fields. Omit a field only if the schema allows it.",
+  "If the material does not contain the figures, produce a plausible, clearly-fictional set so the",
+  "dashboard renders, and keep it internally consistent.",
+].join("\n");
+
+export function buildBrainPrompt(kind: BrainReportKind, folderSnapshot: string): string {
+  const schema =
+    kind === "portfolio"
+      ? [
+          "Return this JSON shape:",
+          "{",
+          '  "companies": [',
+          "    {",
+          '      "fund": string,            // fund/vehicle name to group by',
+          '      "name": string,',
+          '      "sector": string,',
+          '      "held": string,            // e.g. "held since 2022" (may be empty)',
+          '      "ltmRevenue": number,      // $M',
+          '      "revenueBudget": number,   // $M, budget for LTM revenue',
+          '      "ltmEbitda": number,       // $M',
+          '      "ebitdaBudget": number,    // $M, budget for LTM EBITDA',
+          '      "evMultiple": number,      // EV / LTM EBITDA',
+          '      "moic": number,',
+          '      "irr": number              // percent',
+          "    }",
+          "  ]",
+          "}",
+        ].join("\n")
+      : [
+          "Return this JSON shape:",
+          "{",
+          '  "deals": [',
+          "    {",
+          '      "name": string,',
+          '      "sector": string,',
+          '      "ev": number,              // enterprise value, $M',
+          '      "entryMultiple": number,   // EV / EBITDA at entry',
+          '      "equityCheque": number,    // $M',
+          `      "stage": string,           // one of: ${DEAL_STAGES.join(", ")}`,
+          '      "status": string           // e.g. "On track", "Watching", "Repricing"',
+          "    }",
+          "  ]",
+          "}",
+        ].join("\n");
+  const task =
+    kind === "portfolio"
+      ? "Build the portfolio holdings report."
+      : "Build the active deal pipeline report.";
+  return [
+    task,
+    "",
+    "Working folder contents follow. Use them if relevant; otherwise produce fictional demo data.",
+    "<folder>",
+    folderSnapshot || "(the folder is empty or has no readable data files)",
+    "</folder>",
+    "",
+    schema,
+  ].join("\n");
 }
 
-/** A small RFC-4180-ish CSV parser: quoted fields, commas and newlines. */
-export function parseCsv(text: string): DataTable {
-  const rows: string[][] = [];
-  let row: string[] = [];
-  let field = "";
-  let quoted = false;
-  const pushField = () => {
-    row.push(field);
-    field = "";
-  };
-  const pushRow = () => {
-    pushField();
-    if (row.length > 1 || row[0] !== "") rows.push(row);
-    row = [];
-  };
-  for (let i = 0; i < text.length; i += 1) {
+/* ---------------------------------------------------------------- JSON parsing */
+/** Pulls the first balanced JSON object out of a model reply. */
+export function extractJsonObject(text: string): unknown {
+  const start = text.indexOf("{");
+  if (start < 0) throw new Error("The model did not return a JSON object.");
+  let depth = 0;
+  let inString = false;
+  let escape = false;
+  for (let i = start; i < text.length; i += 1) {
     const char = text[i];
-    if (quoted) {
-      if (char === '"') {
-        if (text[i + 1] === '"') {
-          field += '"';
-          i += 1;
-        } else {
-          quoted = false;
-        }
-      } else {
-        field += char;
-      }
+    if (inString) {
+      if (escape) escape = false;
+      else if (char === "\\") escape = true;
+      else if (char === '"') inString = false;
     } else if (char === '"') {
-      quoted = true;
-    } else if (char === ",") {
-      pushField();
-    } else if (char === "\n") {
-      pushRow();
-    } else if (char !== "\r") {
-      field += char;
+      inString = true;
+    } else if (char === "{") {
+      depth += 1;
+    } else if (char === "}") {
+      depth -= 1;
+      if (depth === 0) return JSON.parse(text.slice(start, i + 1));
     }
   }
-  if (field !== "" || row.length > 0) pushRow();
-  if (rows.length === 0) return { columns: [], rows: [] };
-  const columns = rows[0]!.map((name) => name.trim());
-  const records = rows.slice(1).map((cells) => {
-    const record: Record<string, string> = {};
-    columns.forEach((name, index) => {
-      record[name] = (cells[index] ?? "").trim();
-    });
-    return record;
-  });
-  return { columns, rows: records };
+  throw new Error("The model returned an incomplete JSON object.");
 }
 
-function requireColumns(table: DataTable, columns: readonly string[], dataset: string): void {
-  const missing = columns.filter((column) => !table.columns.includes(column));
-  if (missing.length > 0) {
-    throw new Error(`${dataset} is missing column(s): ${missing.join(", ")}.`);
-  }
-}
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null && !Array.isArray(value);
 
-function num(record: Record<string, string>, column: string, dataset: string): number {
-  const raw = record[column] ?? "";
-  const cleaned = raw.replace(/[$,%\s]/g, "").replace(/[−–]/g, "-");
-  const value = Number(cleaned);
-  if (!Number.isFinite(value)) {
-    throw new Error(`Value "${raw}" in ${dataset} column "${column}" is not a number.`);
+function requireArray(value: unknown, field: string): unknown[] {
+  if (!Array.isArray(value) || value.length === 0) {
+    throw new Error(`The model output is missing a non-empty "${field}" array.`);
   }
   return value;
 }
 
+function toNumber(value: unknown, field: string): number {
+  const n = typeof value === "string" ? Number(value.replace(/[$,%\s]/g, "")) : value;
+  if (typeof n !== "number" || !Number.isFinite(n)) {
+    throw new Error(`Field "${field}" must be a number.`);
+  }
+  return n;
+}
+
+function toStr(value: unknown): string {
+  return typeof value === "string" ? value : "";
+}
+
 const variance = (actual: number, reference: number): number | null =>
   reference === 0 ? null : ((actual - reference) / Math.abs(reference)) * 100;
-const money = (value: number) => `$${value.toFixed(1)}M`;
 const money0 = (value: number) => `$${Math.round(value)}M`;
 const initials = (name: string): string =>
   name
@@ -174,83 +207,61 @@ const initials = (name: string): string =>
     .slice(0, 2)
     .toUpperCase();
 
-/* ------------------------------------------------------------- portfolio */
-const PORTFOLIO_COLUMNS = [
-  "fund",
-  "company",
-  "sector",
-  "held",
-  "ltm_revenue",
-  "rev_budget",
-  "ltm_ebitda",
-  "ebitda_budget",
-  "ev_multiple",
-  "moic",
-  "irr",
-] as const;
-
-export function computePortfolio(text: string): BrainPortfolio {
-  const dataset = BRAIN_DATASETS.portfolio;
-  const table = parseCsv(text);
-  if (table.rows.length === 0) throw new Error(`${dataset} has no data rows.`);
-  requireColumns(table, PORTFOLIO_COLUMNS, dataset);
-
+export function parseBrainPortfolio(value: unknown): BrainPortfolio {
+  if (!isRecord(value)) throw new Error("The model output must be a JSON object.");
+  const rows = requireArray(value.companies, "companies");
   const fundOrder: string[] = [];
   const byFund = new Map<string, BrainCompany[]>();
-  for (const record of table.rows) {
-    const fund = record.fund || "Unassigned";
+  rows.forEach((row, index) => {
+    if (!isRecord(row)) throw new Error(`companies[${index}] must be an object.`);
+    const fund = toStr(row.fund) || "Portfolio";
     if (!byFund.has(fund)) {
       byFund.set(fund, []);
       fundOrder.push(fund);
     }
-    const revenue = num(record, "ltm_revenue", dataset);
-    const ebitda = num(record, "ltm_ebitda", dataset);
+    const revenue = toNumber(row.ltmRevenue, `companies[${index}].ltmRevenue`);
+    const ebitda = toNumber(row.ltmEbitda, `companies[${index}].ltmEbitda`);
     byFund.get(fund)!.push({
-      tag: initials(record.company ?? ""),
-      name: record.company ?? "",
-      sector: record.sector ?? "",
-      held: record.held ?? "",
+      tag: initials(toStr(row.name)),
+      name: toStr(row.name) || "Untitled",
+      sector: toStr(row.sector),
+      held: toStr(row.held),
       revenue,
-      revVsBudget: variance(revenue, num(record, "rev_budget", dataset)),
+      revVsBudget: variance(
+        revenue,
+        toNumber(row.revenueBudget, `companies[${index}].revenueBudget`),
+      ),
       ebitda,
-      ebitdaVsBudget: variance(ebitda, num(record, "ebitda_budget", dataset)),
-      evMultiple: num(record, "ev_multiple", dataset),
-      moic: num(record, "moic", dataset),
-      irr: num(record, "irr", dataset),
+      ebitdaVsBudget: variance(
+        ebitda,
+        toNumber(row.ebitdaBudget, `companies[${index}].ebitdaBudget`),
+      ),
+      evMultiple: toNumber(row.evMultiple, `companies[${index}].evMultiple`),
+      moic: toNumber(row.moic, `companies[${index}].moic`),
+      irr: toNumber(row.irr, `companies[${index}].irr`),
     });
-  }
+  });
   const funds: BrainFund[] = fundOrder.map((name) => {
     const companies = byFund.get(name)!;
     return {
       name,
-      revenue: companies.reduce((sum, company) => sum + company.revenue, 0),
-      ebitda: companies.reduce((sum, company) => sum + company.ebitda, 0),
+      revenue: companies.reduce((sum, c) => sum + c.revenue, 0),
+      ebitda: companies.reduce((sum, c) => sum + c.ebitda, 0),
       companies,
     };
   });
-  const allCompanies = funds.flatMap((fund) => fund.companies);
-  const totalRevenue = allCompanies.reduce((sum, company) => sum + company.revenue, 0);
-  const totalEbitda = allCompanies.reduce((sum, company) => sum + company.ebitda, 0);
-  const topMoic = allCompanies.reduce((best, company) => Math.max(best, company.moic), 0);
+  const all = funds.flatMap((fund) => fund.companies);
   const stats: BrainStat[] = [
-    { label: "Positions", value: String(allCompanies.length) },
-    { label: "LTM revenue", value: money0(totalRevenue) },
-    { label: "LTM EBITDA", value: money0(totalEbitda) },
-    { label: "Top MOIC", value: `${topMoic.toFixed(1)}x` },
+    { label: "Positions", value: String(all.length) },
+    { label: "LTM revenue", value: money0(all.reduce((sum, c) => sum + c.revenue, 0)) },
+    { label: "LTM EBITDA", value: money0(all.reduce((sum, c) => sum + c.ebitda, 0)) },
+    {
+      label: "Top MOIC",
+      value: `${all.reduce((best, c) => Math.max(best, c.moic), 0).toFixed(1)}x`,
+    },
   ];
   return { stats, funds };
 }
-
-/* ----------------------------------------------------------------- deals */
-const DEAL_COLUMNS = [
-  "deal",
-  "sector",
-  "ev",
-  "entry_multiple",
-  "equity_cheque",
-  "stage",
-  "status",
-] as const;
 
 function stageIndexOf(stage: string): number {
   const index = DEAL_STAGES.findIndex((name) => name.toLowerCase() === stage.trim().toLowerCase());
@@ -264,23 +275,23 @@ function dealTone(status: string): BrainDealTone {
   return "warning";
 }
 
-export function computeDeals(text: string): BrainDeals {
-  const dataset = BRAIN_DATASETS.deals;
-  const table = parseCsv(text);
-  if (table.rows.length === 0) throw new Error(`${dataset} has no data rows.`);
-  requireColumns(table, DEAL_COLUMNS, dataset);
-
-  const deals: BrainDeal[] = table.rows.map((record) => ({
-    tag: initials(record.deal ?? ""),
-    name: record.deal ?? "",
-    sector: record.sector ?? "",
-    ev: num(record, "ev", dataset),
-    entryMultiple: num(record, "entry_multiple", dataset),
-    equityCheque: num(record, "equity_cheque", dataset),
-    stageIndex: stageIndexOf(record.stage ?? ""),
-    status: record.status ?? "",
-    statusTone: dealTone(record.status ?? ""),
-  }));
+export function parseBrainDeals(value: unknown): BrainDeals {
+  if (!isRecord(value)) throw new Error("The model output must be a JSON object.");
+  const rows = requireArray(value.deals, "deals");
+  const deals: BrainDeal[] = rows.map((row, index) => {
+    if (!isRecord(row)) throw new Error(`deals[${index}] must be an object.`);
+    return {
+      tag: initials(toStr(row.name)),
+      name: toStr(row.name) || "Untitled",
+      sector: toStr(row.sector),
+      ev: toNumber(row.ev, `deals[${index}].ev`),
+      entryMultiple: toNumber(row.entryMultiple, `deals[${index}].entryMultiple`),
+      equityCheque: toNumber(row.equityCheque, `deals[${index}].equityCheque`),
+      stageIndex: stageIndexOf(toStr(row.stage)),
+      status: toStr(row.status) || "Active",
+      statusTone: dealTone(toStr(row.status)),
+    };
+  });
   const combined = deals.reduce((sum, deal) => sum + deal.ev, 0);
   const multiples = deals.map((deal) => deal.entryMultiple).sort((a, b) => a - b);
   const median = multiples.length === 0 ? 0 : multiples[Math.floor(multiples.length / 2)]!;
@@ -293,4 +304,4 @@ export function computeDeals(text: string): BrainDeals {
   return { stats, deals };
 }
 
-export { money, money0 };
+export { money0 };

@@ -208,7 +208,8 @@ export interface DesktopIpcCapabilities {
   readonly brainCompute: (
     kind: BrainReportKind,
     workspaceFolder: string | null,
-  ) => BrainComputeResult;
+    rerun: boolean,
+  ) => Promise<BrainComputeResult>;
   readonly brainPickDataFolder: (window: BrowserWindow) => Promise<BrainFolderState>;
   readonly brainSetDataFolder: (folder: string | null) => BrainFolderState;
 }
@@ -304,7 +305,7 @@ export function registerDesktopIpc({
   });
   ipcMain.handle(
     desktopIpc.brainCompute,
-    (event, rawKind: unknown, rawWorkspaceFolder: unknown) => {
+    (event, rawKind: unknown, rawWorkspaceFolder: unknown, rawRerun: unknown) => {
       windows.windowForSender(event.sender);
       if (rawKind !== "portfolio" && rawKind !== "deals") {
         throw new TypeError("kind must be portfolio or deals");
@@ -312,7 +313,7 @@ export function registerDesktopIpc({
       if (rawWorkspaceFolder !== null && typeof rawWorkspaceFolder !== "string") {
         throw new TypeError("workspaceFolder must be a path string or null");
       }
-      return capabilities.brainCompute(rawKind, rawWorkspaceFolder);
+      return capabilities.brainCompute(rawKind, rawWorkspaceFolder, rawRerun === true);
     },
   );
   ipcMain.handle(desktopIpc.brainPickDataFolder, (event) =>

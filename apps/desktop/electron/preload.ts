@@ -103,11 +103,12 @@ contextBridge.exposeInMainWorld("piApp", {
   platform: process.platform,
   versions: process.versions,
   ping: () => ipcRenderer.invoke(desktopIpc.ping) as Promise<string>,
-  brainCompute: (kind: BrainReportKind, workspaceFolder: string | null) =>
+  brainCompute: (kind: BrainReportKind, workspaceFolder: string | null, rerun?: boolean) =>
     ipcRenderer.invoke(
       desktopIpc.brainCompute,
       kind,
       workspaceFolder,
+      rerun ?? false,
     ) as Promise<BrainComputeResult>,
   brainPickDataFolder: () =>
     ipcRenderer.invoke(desktopIpc.brainPickDataFolder) as Promise<BrainFolderState>,

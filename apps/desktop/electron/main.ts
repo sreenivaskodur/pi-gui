@@ -17,6 +17,7 @@ import { createRequire } from "node:module";
 import { randomUUID } from "node:crypto";
 import type { AgentToolResult, ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { readFile, stat } from "node:fs/promises";
+import os from "node:os";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { augmentPosixPath } from "../scripts/augment-path.cjs";
@@ -839,9 +840,15 @@ app.setName("pi");
 const configuredUserDataDir = process.env.PI_APP_USER_DATA_DIR?.trim() || app.getPath("userData");
 app.setPath("userData", configuredUserDataDir);
 
-// The Portfolio and Deals pages read their CSVs from a working folder: the
-// folder the user picks, or the open workspace folder the renderer passes.
-const brainService = new BrainService(configuredUserDataDir);
+// The Portfolio and Deals pages run a preset prompt through the model against a
+// working folder: the folder the user picks, or the open workspace folder the
+// renderer passes. The agent dir matches the driver's resolution.
+const brainAgentDir = (() => {
+  const override = process.env.PI_CODING_AGENT_DIR;
+  if (!override) return path.join(os.homedir(), ".pi", "agent");
+  return override.startsWith("~") ? path.join(os.homedir(), override.slice(1)) : override;
+})();
+const brainService = new BrainService(configuredUserDataDir, brainAgentDir);
 
 const hasSingleInstanceLock = app.requestSingleInstanceLock();
 if (!hasSingleInstanceLock) {
@@ -1091,7 +1098,8 @@ app
         pickWorkspace: (window) => pickWorkspaceViaDialog(window),
         createLoginCallbacks: (window) => createRuntimeLoginCallbacks(window),
         probeCustomProviderModels,
-        brainCompute: (kind, workspaceFolder) => brainService.compute(kind, workspaceFolder),
+        brainCompute: (kind, workspaceFolder, rerun) =>
+          brainService.compute(kind, workspaceFolder, { rerun }),
         brainPickDataFolder: (window) => brainService.pickFolder(window),
         brainSetDataFolder: (folder) => brainService.setFolder(folder),
         notificationPermission: () => notificationPermissionService,

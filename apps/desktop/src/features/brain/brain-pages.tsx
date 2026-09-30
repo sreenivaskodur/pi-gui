@@ -11,10 +11,11 @@ import type { ScheduledTaskRecord, SessionRecord } from "../../../contracts/desk
 import { AgentsIcon } from "../../ui/icons";
 
 /*
- * The Ask/Portfolio/Deals/Agents section pages. Portfolio and Deals compute
- * live from CSVs in the working folder (companies.csv, pipeline.csv) via the
- * brainCompute IPC; Agents reflects the session's real scheduled tasks and
- * running threads. Nothing here is static demo data.
+ * The Ask/Portfolio/Deals/Agents section pages. Portfolio and Deals are
+ * workflows: a preset prompt runs through the model (brainCompute IPC), which
+ * inspects the working folder and returns the report; results are cached and
+ * re-run on demand. Agents reflects the session's real scheduled tasks and
+ * running threads. No static demo data.
  */
 
 // Fixed navy/slate ramp for the brand chips — dark enough for white text in
@@ -46,11 +47,13 @@ function FolderBar({
   busy,
   onChoose,
   onReset,
+  onRerun,
 }: {
   readonly result: BrainComputeResult | null;
   readonly busy: boolean;
   readonly onChoose: () => void;
   readonly onReset: () => void;
+  readonly onRerun: () => void;
 }) {
   return (
     <div className="brain__folderbar">
@@ -58,7 +61,6 @@ function FolderBar({
       <code className="brain__folder-path" title={result?.folder ?? undefined}>
         {result?.folder ?? "None selected"}
       </code>
-      {result?.dataset ? <span className="brain__folder-tag">reads {result.dataset}</span> : null}
       <button className="brain__link-btn" type="button" disabled={busy} onClick={onChoose}>
         Choose folder…
       </button>
@@ -67,6 +69,9 @@ function FolderBar({
           Use workspace folder
         </button>
       ) : null}
+      <button className="brain__link-btn" type="button" disabled={busy} onClick={onRerun}>
+        {busy ? "Running…" : "Re-run workflow"}
+      </button>
     </div>
   );
 }
@@ -74,62 +79,77 @@ function FolderBar({
 function useBrainReport(api: PiDesktopApi, kind: BrainReportKind, workspaceFolder: string | null) {
   const [result, setResult] = useState<BrainComputeResult | null>(null);
   const [busy, setBusy] = useState(false);
-  const compute = useCallback(() => {
-    let cancelled = false;
-    setBusy(true);
-    api
-      .brainCompute(kind, workspaceFolder)
-      .then((next) => {
-        if (!cancelled) setResult(next);
-      })
-      .catch((error: unknown) => {
-        if (!cancelled) {
-          setResult({
-            kind,
-            dataset: kind === "portfolio" ? "companies.csv" : "pipeline.csv",
-            folder: workspaceFolder,
-            chosen: false,
-            error: error instanceof Error ? error.message : String(error),
-          });
-        }
-      })
-      .finally(() => {
-        if (!cancelled) setBusy(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [api, kind, workspaceFolder]);
-  useEffect(() => compute(), [compute]);
-  const choose = useCallback(() => {
-    setBusy(true);
-    api
-      .brainPickDataFolder()
-      .then(() => compute())
-      .catch(() => setBusy(false));
-  }, [api, compute]);
-  const reset = useCallback(() => {
-    setBusy(true);
-    api
-      .brainSetDataFolder(null)
-      .then(() => compute())
-      .catch(() => setBusy(false));
-  }, [api, compute]);
-  return { result, busy, choose, reset };
+  const run = useCallback(
+    (rerun: boolean) => {
+      let cancelled = false;
+      setBusy(true);
+      api
+        .brainCompute(kind, workspaceFolder, rerun)
+        .then((next) => {
+          if (!cancelled) setResult(next);
+        })
+        .catch((error: unknown) => {
+          if (!cancelled) {
+            setResult({
+              kind,
+              folder: workspaceFolder,
+              chosen: false,
+              error: error instanceof Error ? error.message : String(error),
+            });
+          }
+        })
+        .finally(() => {
+          if (!cancelled) setBusy(false);
+        });
+      return () => {
+        cancelled = true;
+      };
+    },
+    [api, kind, workspaceFolder],
+  );
+  // Auto on open: returns the cached result, or runs the workflow if there is none.
+  useEffect(() => run(false), [run]);
+  const afterFolderChange = useCallback(
+    (change: Promise<unknown>) => {
+      setBusy(true);
+      change.then(() => run(false)).catch(() => setBusy(false));
+    },
+    [run],
+  );
+  const choose = useCallback(
+    () => afterFolderChange(api.brainPickDataFolder()),
+    [afterFolderChange, api],
+  );
+  const reset = useCallback(
+    () => afterFolderChange(api.brainSetDataFolder(null)),
+    [afterFolderChange, api],
+  );
+  const rerun = useCallback(() => run(true), [run]);
+  return { result, busy, choose, reset, rerun };
+}
+
+function RunningState({ folder }: { readonly folder: string | null }) {
+  return (
+    <div className="brain__empty">
+      <b>Running the workflow…</b>
+      <br />
+      {folder ? `Asking the model to analyse ${folder}.` : "Asking the model for the report."}
+    </div>
+  );
 }
 
 function EmptyState({ result }: { readonly result: BrainComputeResult }) {
   return (
     <div className="brain__empty">
-      <b>No data yet.</b>
+      <b>No result.</b>
       <br />
-      {result.error ?? `Choose a folder containing ${result.dataset}.`}
+      {result.error ?? "Run the workflow to generate this report."}
     </div>
   );
 }
 
 export function PortfolioPage({ api, workspaceFolder }: PageProps) {
-  const { result, busy, choose, reset } = useBrainReport(api, "portfolio", workspaceFolder);
+  const { result, busy, choose, reset, rerun } = useBrainReport(api, "portfolio", workspaceFolder);
   const portfolio = result?.portfolio;
   let logoIndex = -1;
   return (
@@ -138,17 +158,17 @@ export function PortfolioPage({ api, workspaceFolder }: PageProps) {
         <div className="brain__head">
           <div className="grow">
             <h1>Portfolio</h1>
-            <p>Each company against its EBITDA budget, computed from companies.csv.</p>
+            <p>Holdings against budget, generated by a workflow from the working folder.</p>
           </div>
-          {result?.rows ? (
-            <span className="brain__asof">
-              {result.rows} companies · from {result.dataset}
-            </span>
+          {result?.ranAt ? (
+            <span className="brain__asof">Generated {formatRan(result.ranAt)}</span>
           ) : null}
         </div>
-        <FolderBar result={result} busy={busy} onChoose={choose} onReset={reset} />
+        <FolderBar result={result} busy={busy} onChoose={choose} onReset={reset} onRerun={rerun} />
         {!portfolio ? (
-          result ? (
+          busy ? (
+            <RunningState folder={result?.folder ?? workspaceFolder} />
+          ) : result ? (
             <EmptyState result={result} />
           ) : null
         ) : (
@@ -216,14 +236,19 @@ export function PortfolioPage({ api, workspaceFolder }: PageProps) {
                 </table>
               </div>
             ))}
-            {result?.computedFrom ? (
-              <div className="brain__prov">computed from {result.computedFrom}</div>
+            {result?.folder ? (
+              <div className="brain__prov">workflow · analysed {result.folder}</div>
             ) : null}
           </>
         )}
       </div>
     </section>
   );
+}
+
+function formatRan(iso: string): string {
+  const date = new Date(iso);
+  return Number.isNaN(date.getTime()) ? "just now" : date.toLocaleString();
 }
 
 function signedPct(value: number): string {
@@ -285,7 +310,7 @@ function DealCard({ deal, index }: { readonly deal: BrainDeal; readonly index: n
 }
 
 export function DealsPage({ api, workspaceFolder }: PageProps) {
-  const { result, busy, choose, reset } = useBrainReport(api, "deals", workspaceFolder);
+  const { result, busy, choose, reset, rerun } = useBrainReport(api, "deals", workspaceFolder);
   const deals = result?.deals;
   return (
     <section className="brain" data-testid="brain-deals">
@@ -293,17 +318,19 @@ export function DealsPage({ api, workspaceFolder }: PageProps) {
         <div className="brain__head">
           <div className="grow">
             <h1>Deals</h1>
-            <p>Active opportunities by enterprise value and stage, computed from pipeline.csv.</p>
+            <p>
+              Active pipeline by value and stage, generated by a workflow from the working folder.
+            </p>
           </div>
-          {result?.rows ? (
-            <span className="brain__asof">
-              {result.rows} deals · from {result.dataset}
-            </span>
+          {result?.ranAt ? (
+            <span className="brain__asof">Generated {formatRan(result.ranAt)}</span>
           ) : null}
         </div>
-        <FolderBar result={result} busy={busy} onChoose={choose} onReset={reset} />
+        <FolderBar result={result} busy={busy} onChoose={choose} onReset={reset} onRerun={rerun} />
         {!deals ? (
-          result ? (
+          busy ? (
+            <RunningState folder={result?.folder ?? workspaceFolder} />
+          ) : result ? (
             <EmptyState result={result} />
           ) : null
         ) : (
@@ -314,8 +341,8 @@ export function DealsPage({ api, workspaceFolder }: PageProps) {
                 <DealCard deal={deal} index={index} key={deal.name} />
               ))}
             </div>
-            {result?.computedFrom ? (
-              <div className="brain__prov">computed from {result.computedFrom}</div>
+            {result?.folder ? (
+              <div className="brain__prov">workflow · analysed {result.folder}</div>
             ) : null}
           </>
         )}

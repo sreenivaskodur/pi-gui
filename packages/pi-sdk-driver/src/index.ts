@@ -23,6 +23,8 @@ export { SessionLeasedError } from "./session-lease.js";
 export type { LeaseInfo } from "./session-lease.js";
 export { RUNTIME_SCHEMA_VERSION } from "./session-schema.js";
 export type { GenerateThreadTitleOptions } from "./thread-title-generator.js";
+export { generateAgentReply } from "./agent-oneshot.js";
+export type { AgentOneShotOptions, AgentOneShotDeps, AgentOneShotResult } from "./agent-oneshot.js";
 export type {
   PiDesktopExtensionObserver,
   PiDesktopExtensionRuntime,
