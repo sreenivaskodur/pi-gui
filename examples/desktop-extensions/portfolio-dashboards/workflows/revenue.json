@@ -1,0 +1,89 @@
+{
+  "id": "revenue",
+  "label": "Revenue vs budget",
+  "description": "One company's monthly revenue, margin and retention against budget.",
+  "dashboard": {
+    "title": "Revenue vs budget — Cobalt Software",
+    "subtitle": "Monthly revenue against the board budget, split by segment.",
+    "asOf": "Close through Jun 2026",
+    "source": "workflow: revenue.json · all figures fictional demo data",
+    "stats": [
+      {
+        "label": "LTM revenue",
+        "value": "$84.3M",
+        "delta": { "text": "+4.1% vs budget", "tone": "up" }
+      },
+      {
+        "label": "June revenue",
+        "value": "$13.8M",
+        "delta": { "text": "+2.2% vs budget", "tone": "up" }
+      },
+      {
+        "label": "Gross margin",
+        "value": "71.4%",
+        "delta": { "text": "+0.3 pts vs budget", "tone": "flat" }
+      },
+      {
+        "label": "Net revenue retention",
+        "value": "114%",
+        "delta": { "text": "−1.8 pts QoQ", "tone": "down" }
+      }
+    ],
+    "charts": [
+      {
+        "kind": "cartesian",
+        "title": "Monthly revenue against budget, $M",
+        "cats": ["Jan", "Feb", "Mar", "Apr", "May", "Jun"],
+        "series": [
+          {
+            "name": "Actual",
+            "kind": "bar",
+            "values": [11.8, 12.1, 12.9, 12.4, 13.2, 13.8],
+            "slot": 1
+          },
+          {
+            "name": "Budget",
+            "kind": "line",
+            "values": [11.5, 11.9, 12.3, 12.7, 13.1, 13.5],
+            "slot": 2,
+            "dashed": true
+          }
+        ],
+        "format": "money",
+        "yZero": true
+      }
+    ],
+    "tables": [
+      {
+        "title": "June revenue by segment",
+        "columns": [
+          { "label": "Segment", "align": "left" },
+          { "label": "Revenue", "align": "right" },
+          { "label": "vs budget", "align": "right" }
+        ],
+        "rows": [
+          [
+            { "text": "Enterprise subscriptions", "tone": "strong" },
+            { "text": "$8.4M" },
+            { "text": "+4.2%", "tone": "pos" }
+          ],
+          [
+            { "text": "Mid-market subscriptions", "tone": "strong" },
+            { "text": "$3.1M" },
+            { "text": "+1.1%", "tone": "pos" }
+          ],
+          [
+            { "text": "Professional services", "tone": "strong" },
+            { "text": "$1.6M" },
+            { "text": "−6.3%", "tone": "neg" }
+          ],
+          [
+            { "text": "Marketplace and other", "tone": "strong" },
+            { "text": "$0.7M" },
+            { "text": "+12.5%", "tone": "pos" }
+          ]
+        ]
+      }
+    ]
+  }
+}

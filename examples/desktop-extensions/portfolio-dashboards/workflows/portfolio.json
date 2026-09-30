@@ -1,0 +1,94 @@
+{
+  "id": "portfolio",
+  "label": "Portfolio overview",
+  "description": "Fund NAV against plan plus every company against its budget.",
+  "dashboard": {
+    "title": "Portfolio overview",
+    "subtitle": "Fund II mark against the operating plan, with each company against its budget.",
+    "asOf": "Corpus current to Jun 2026",
+    "source": "workflow: portfolio.json · all figures fictional demo data",
+    "stats": [
+      { "label": "Fund NAV", "value": "$705M", "delta": { "text": "+1.6% vs plan", "tone": "up" } },
+      {
+        "label": "Net IRR",
+        "value": "19.4%",
+        "delta": { "text": "+1.4 pts vs hurdle", "tone": "up" }
+      },
+      {
+        "label": "Gross MOIC",
+        "value": "2.1x",
+        "delta": { "text": "● unchanged", "tone": "flat" }
+      },
+      { "label": "Dry powder", "value": "$182M", "delta": { "text": "−7.2% QoQ", "tone": "down" } }
+    ],
+    "charts": [
+      {
+        "kind": "cartesian",
+        "title": "NAV against plan, $M",
+        "subtitle": "Marks are quarterly; the dashed segment is the plan beyond the last mark.",
+        "cats": ["Q1", "Q2", "Q3", "Q4", "Q1'27E", "Q2'27E"],
+        "series": [
+          { "name": "NAV", "kind": "bar", "values": [612, 648, 671, 705, null, null], "slot": 1 },
+          {
+            "name": "Operating plan",
+            "kind": "line",
+            "values": [605, 634, 668, 694, 726, 758],
+            "slot": 2,
+            "dashed": true
+          }
+        ],
+        "format": "money0"
+      }
+    ],
+    "tables": [
+      {
+        "title": "Portfolio companies",
+        "subtitle": "LTM revenue and EBITDA, variance measured against each company's budget.",
+        "columns": [
+          { "label": "Company", "align": "left" },
+          { "label": "LTM revenue", "align": "right" },
+          { "label": "LTM EBITDA", "align": "right" },
+          { "label": "vs budget", "align": "right" },
+          { "label": "Status", "align": "right" }
+        ],
+        "rows": [
+          [
+            { "text": "Meridian Health", "tone": "strong" },
+            { "text": "$148.2M" },
+            { "text": "$32.4M" },
+            { "text": "+3.1%", "tone": "pos" },
+            { "text": "On track", "pill": "good" }
+          ],
+          [
+            { "text": "Northgate Logistics", "tone": "strong" },
+            { "text": "$96.7M" },
+            { "text": "$18.9M" },
+            { "text": "−4.6%", "tone": "neg" },
+            { "text": "Watching", "pill": "warning" }
+          ],
+          [
+            { "text": "Cobalt Software", "tone": "strong" },
+            { "text": "$84.3M" },
+            { "text": "$27.1M" },
+            { "text": "+6.8%", "tone": "pos" },
+            { "text": "On track", "pill": "good" }
+          ],
+          [
+            { "text": "Harbourline Foods", "tone": "strong" },
+            { "text": "$71.5M" },
+            { "text": "$11.2M" },
+            { "text": "−8.9%", "tone": "neg" },
+            { "text": "At risk", "pill": "serious" }
+          ],
+          [
+            { "text": "Atlas Compliance", "tone": "strong" },
+            { "text": "$55.0M" },
+            { "text": "$16.6M" },
+            { "text": "+1.9%", "tone": "pos" },
+            { "text": "On track", "pill": "good" }
+          ]
+        ]
+      }
+    ]
+  }
+}

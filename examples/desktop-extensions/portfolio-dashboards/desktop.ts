@@ -536,7 +536,7 @@ export async function mount(root: HTMLElement, host: DesktopViewContext): Promis
   root.replaceChildren(style, view);
   const cssVar: CssVar = (name) => view.style.getPropertyValue(name).trim();
 
-  let state: DashboardsState = { ready: false, error: null, presets: [], dashboards: [] };
+  let state: DashboardsState = { ready: false, error: null, workflows: [], dashboards: [] };
   let selected: string | null = null;
   let actionError = "";
   let pending = false;
@@ -556,12 +556,12 @@ export async function mount(root: HTMLElement, host: DesktopViewContext): Promis
     if (disposed) return;
     const record =
       state.dashboards.find((candidate) => candidate.id === selected) ?? state.dashboards.at(-1);
-    const workflows = state.presets
+    const workflows = state.workflows
       .map(
-        (preset) =>
-          `<button class="chip" data-preset="${esc(preset.id)}" title="${esc(preset.description)}" ${
+        (workflow) =>
+          `<button class="chip" data-workflow="${esc(workflow.id)}" title="${esc(workflow.description)}" ${
             pending ? "disabled" : ""
-          }>${esc(preset.label)}</button>`,
+          }>${esc(workflow.label)}</button>`,
       )
       .join("");
     const history = state.dashboards
@@ -579,7 +579,7 @@ export async function mount(root: HTMLElement, host: DesktopViewContext): Promis
         ${record.spec.charts.map(chartCardHtml).join("")}
         ${record.spec.tables.map(tableHtml).join("")}
         <div class="prov">${esc(record.spec.source ?? "emitted dashboard")} · ${esc(
-          record.origin === "preset" ? "pre-configured workflow" : "emit_dashboard tool",
+          record.origin === "workflow" ? "pre-configured workflow" : "emit_dashboard tool",
         )} · ${esc(new Date(record.createdAt).toLocaleTimeString())}</div>`
       : `<div class="empty"><b>No dashboards yet.</b><br>Run a workflow above, type /dashboard in the
          composer, or ask the agent to publish data with the emit_dashboard tool.</div>`;
@@ -604,7 +604,7 @@ export async function mount(root: HTMLElement, host: DesktopViewContext): Promis
 
   view.addEventListener("click", (event) => {
     const target = (event.target as HTMLElement).closest<HTMLElement>(
-      "[data-preset],[data-select]",
+      "[data-workflow],[data-select]",
     );
     if (!target || pending || disposed) return;
     if (target.dataset.select) {
@@ -612,7 +612,7 @@ export async function mount(root: HTMLElement, host: DesktopViewContext): Promis
       render();
       return;
     }
-    const presetId = target.dataset.preset!;
+    const workflowId = target.dataset.workflow!;
     const requestId = [...crypto.getRandomValues(new Uint8Array(16))]
       .map((byte) => byte.toString(16).padStart(2, "0"))
       .join("");
@@ -620,7 +620,7 @@ export async function mount(root: HTMLElement, host: DesktopViewContext): Promis
     actionError = "";
     render();
     service
-      .emitPreset({ presetId, requestId }, BACKGROUND_CONTEXT)
+      .emitWorkflow({ workflowId, requestId }, BACKGROUND_CONTEXT)
       .then((result) => {
         selected = result.dashboardId;
       })

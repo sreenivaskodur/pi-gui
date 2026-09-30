@@ -1,20 +1,29 @@
+import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { defineFacet } from "@earendil-works/chord";
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import { Type } from "@earendil-works/pi-ai";
-import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import {
+  getAgentDir,
+  type ExtensionAPI,
+  type ExtensionContext,
+} from "@earendil-works/pi-coding-agent";
 import { registerDesktopView } from "@pi-gui/extension-ui";
 import { Dashboards, type DashboardSpec } from "./contract.ts";
-import { presetInfos } from "./presets.ts";
 import { DashboardStore } from "./store.ts";
 
 /*
  * Portfolio Dashboards example extension.
  *
- * Three pre-configured workflows (/dashboard portfolio|revenue|pipeline) emit
- * fictional demo data, and the emit_dashboard tool lets the agent publish its
- * own data. The desktop view renders every emitted dashboard in the True Wind
- * visual format: stat tiles, budget-vs-actual charts, and status tables.
+ * Workflows are JSON config files, independent of this code: the bundled
+ * workflows/ directory ships three demos, and users add their own under
+ * ~/.pi/agent/dashboards or the workspace's .pi/dashboards. Each runs on
+ * demand (/dashboard <id>, a workflow chip, or the emit_dashboard tool) and
+ * results are cached to disk so they survive a restart. The desktop view
+ * renders every dashboard in the True Wind visual format.
  */
+
+const bundledWorkflowsDir = fileURLToPath(new URL("./workflows/", import.meta.url));
 
 function summarize(spec: DashboardSpec): string {
   const lines = [
@@ -29,22 +38,45 @@ function summarize(spec: DashboardSpec): string {
 }
 
 export default function portfolioDashboardsExtension(pi: ExtensionAPI): void {
-  const store = new DashboardStore();
+  const agentDir = getAgentDir();
+  let workspaceDir: string | null = null;
+  const store = new DashboardStore({
+    // Later directories win, so a workspace config overrides a user-wide one,
+    // which overrides a bundled one with the same id.
+    workflowDirectories: () => [
+      bundledWorkflowsDir,
+      join(agentDir, "dashboards"),
+      ...(workspaceDir ? [join(workspaceDir, ".pi", "dashboards")] : []),
+    ],
+    cachePath: join(agentDir, "dashboards-cache.json"),
+  });
+
+  const trackWorkspace = (_event: unknown, ctx: ExtensionContext) => {
+    workspaceDir = ctx.cwd;
+    store.refreshWorkflows();
+  };
+  pi.on("session_start", trackWorkspace);
+  pi.on("session_tree", trackWorkspace);
 
   pi.registerCommand("dashboard", {
     description:
-      "Emit a pre-configured dashboard into the Dashboards tab: /dashboard portfolio|revenue|pipeline|list",
+      "Run a dashboard workflow into the Dashboards tab: /dashboard <id> or /dashboard list",
     handler(args, ctx) {
-      const presetId = args.trim() || "list";
-      if (presetId === "list") {
-        const listing = presetInfos
-          .map((preset) => `  /dashboard ${preset.id} — ${preset.description}`)
+      const workflowId = args.trim() || "list";
+      if (workflowId === "list") {
+        store.refreshWorkflows();
+        const { workflows, error } = store.snapshot();
+        const listing = workflows
+          .map((workflow) => `  /dashboard ${workflow.id} — ${workflow.description}`)
           .join("\n");
-        ctx.ui.notify(`Pre-configured dashboards:\n${listing}`, "info");
+        ctx.ui.notify(
+          `Dashboard workflows:\n${listing || "  (none found)"}${error ? `\n${error}` : ""}`,
+          "info",
+        );
         return Promise.resolve();
       }
       try {
-        const record = store.emitPreset(presetId);
+        const record = store.emitWorkflow(workflowId);
         ctx.ui.notify(
           `Dashboard emitted. Open the Dashboards tab to view it.\n${summarize(record.spec)}`,
           "info",
@@ -95,9 +127,9 @@ export default function portfolioDashboardsExtension(pi: ExtensionAPI): void {
           env.own(store.subscribe((next) => state.replace(BACKGROUND_CONTEXT, next)));
           env.provide(Dashboards, {
             state,
-            async emitPreset(request, context) {
+            async emitWorkflow(request, context) {
               context.abortSignal?.throwIfAborted();
-              const record = store.emitPreset(request.presetId);
+              const record = store.emitWorkflow(request.workflowId);
               return { dashboardId: record.id };
             },
           });

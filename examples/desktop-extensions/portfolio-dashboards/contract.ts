@@ -91,7 +91,7 @@ export interface DashboardSpec {
   source?: string;
 }
 
-export interface PresetInfo {
+export interface WorkflowInfo {
   id: string;
   label: string;
   description: string;
@@ -100,25 +100,26 @@ export interface PresetInfo {
 export interface DashboardRecord {
   id: string;
   createdAt: string;
-  origin: "preset" | "tool";
+  origin: "workflow" | "tool";
+  workflowId?: string;
   spec: DashboardSpec;
 }
 
 export interface DashboardsState {
   ready: boolean;
   error: string | null;
-  presets: PresetInfo[];
+  workflows: WorkflowInfo[];
   dashboards: DashboardRecord[];
 }
 
-export interface EmitPresetRequest {
-  presetId: string;
+export interface EmitWorkflowRequest {
+  workflowId: string;
   requestId: string;
 }
 
 export interface DashboardsService {
   state: ReplicatedState<DashboardsState>;
-  emitPreset(request: EmitPresetRequest, context: Context): Promise<{ dashboardId: string }>;
+  emitWorkflow(request: EmitWorkflowRequest, context: Context): Promise<{ dashboardId: string }>;
 }
 
 export const Dashboards = defineService<DashboardsService>(

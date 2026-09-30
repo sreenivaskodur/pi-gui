@@ -1,0 +1,83 @@
+{
+  "id": "pipeline",
+  "label": "Deal pipeline",
+  "description": "Active deals ranked by enterprise value with stage and status.",
+  "dashboard": {
+    "title": "Deal pipeline",
+    "subtitle": "Active opportunities by enterprise value and stage.",
+    "asOf": "Pipeline reviewed this week",
+    "source": "workflow: pipeline.json · all figures fictional demo data",
+    "stats": [
+      { "label": "Active deals", "value": "5", "delta": { "text": "+25.0% QoQ", "tone": "up" } },
+      {
+        "label": "In exclusivity",
+        "value": "1",
+        "delta": { "text": "● unchanged", "tone": "flat" }
+      },
+      { "label": "Combined EV", "value": "$1330M" },
+      {
+        "label": "Median entry multiple",
+        "value": "11.2x",
+        "delta": { "text": "−3.4% vs LTM avg", "tone": "down" }
+      }
+    ],
+    "charts": [
+      {
+        "kind": "hbars",
+        "title": "Enterprise value by deal, $M",
+        "rows": [
+          { "label": "Project Palmyra", "value": 420, "emphasis": true, "slot": 3 },
+          { "label": "Project Northwind", "value": 310, "slot": 1 },
+          { "label": "Project Copperfield", "value": 265, "slot": 1 },
+          { "label": "Project Seabright", "value": 190, "slot": 1 },
+          { "label": "Project Kestrel", "value": 145, "slot": 1 }
+        ],
+        "format": "money0",
+        "seriesName": "Enterprise value"
+      }
+    ],
+    "tables": [
+      {
+        "title": "Stage and next step",
+        "columns": [
+          { "label": "Deal", "align": "left" },
+          { "label": "EV", "align": "right" },
+          { "label": "Stage", "align": "right" },
+          { "label": "Status", "align": "right" }
+        ],
+        "rows": [
+          [
+            { "text": "Project Palmyra", "tone": "strong" },
+            { "text": "$420M" },
+            { "text": "Exclusivity", "tone": "muted" },
+            { "text": "On track", "pill": "good" }
+          ],
+          [
+            { "text": "Project Northwind", "tone": "strong" },
+            { "text": "$310M" },
+            { "text": "IOI submitted", "tone": "muted" },
+            { "text": "Watching", "pill": "warning" }
+          ],
+          [
+            { "text": "Project Copperfield", "tone": "strong" },
+            { "text": "$265M" },
+            { "text": "Management meetings", "tone": "muted" },
+            { "text": "Queued", "pill": "neutral" }
+          ],
+          [
+            { "text": "Project Seabright", "tone": "strong" },
+            { "text": "$190M" },
+            { "text": "Initial review", "tone": "muted" },
+            { "text": "Queued", "pill": "neutral" }
+          ],
+          [
+            { "text": "Project Kestrel", "tone": "strong" },
+            { "text": "$145M" },
+            { "text": "Initial review", "tone": "muted" },
+            { "text": "Queued", "pill": "neutral" }
+          ]
+        ]
+      }
+    ]
+  }
+}

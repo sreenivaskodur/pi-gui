@@ -2,28 +2,50 @@
 
 A Pi extension with a desktop view that renders dashboards in the True Wind
 prototype's visual format: stat tiles with budget deltas, actual-vs-plan
-charts, ranked horizontal bars, and status tables. All preset figures are
+charts, ranked horizontal bars, and status tables. All bundled figures are
 fictional demo data.
 
-## Pre-configured workflows
+## Workflows are config files, not code
 
-Three workflows each emit one dashboard. Run them from the Dashboards tab's
-workflow chips, or from the composer:
+A workflow is one JSON file:
 
-- `/dashboard portfolio` — fund NAV against plan plus every company against budget.
-- `/dashboard revenue` — one company's monthly revenue, margin and retention against budget.
-- `/dashboard pipeline` — active deals ranked by enterprise value with stage and status.
-- `/dashboard list` — print the catalogue.
+```json
+{
+  "id": "my-dashboard",
+  "label": "My dashboard",
+  "description": "What this reports.",
+  "dashboard": {
+    "title": "…",
+    "stats": [{ "label": "…", "value": "…", "delta": { "text": "…", "tone": "up" } }],
+    "charts": [{ "kind": "cartesian", "title": "…", "cats": ["…"], "series": [] }],
+    "tables": [{ "title": "…", "columns": [{ "label": "…" }], "rows": [] }]
+  }
+}
+```
 
-## Agent-emitted data
+Configs are rescanned on demand from three places; a later file with the same
+`id` overrides an earlier one, so files copy cleanly between machines and
+workspaces:
 
-The `emit_dashboard` tool lets the agent publish its own data in the same
-format: a declarative spec with `stats`, `charts` (`cartesian` or `hbars`) and
-`tables`. The backend rebuilds every field of the untrusted payload before it
-reaches the view; malformed specs are rejected with a field-level error.
+1. the extension's bundled [`workflows/`](./workflows) directory — ships
+   `portfolio`, `revenue` and `pipeline`;
+2. `~/.pi/agent/dashboards/*.json` — user-wide;
+3. `<workspace>/.pi/dashboards/*.json` — per project.
 
-Dashboards live in memory for the app run (last 20 kept); they are not
-persisted to the session.
+Every config and every tool payload is rebuilt field by field before it
+reaches the view; malformed files are reported by path without breaking the
+other workflows.
+
+## Run on demand, results cached
+
+A workflow runs only when asked: click its chip in the Dashboards tab, or use
+the composer — `/dashboard portfolio|revenue|pipeline` (`/dashboard list`
+prints the current catalogue). The agent can publish its own data in the same
+format through the `emit_dashboard` tool.
+
+Emitted dashboards (the last 20) are cached in
+`~/.pi/agent/dashboards-cache.json` and restored on the next launch, so the
+tab reopens on the previous results without re-running anything.
 
 ## Build and configure
 

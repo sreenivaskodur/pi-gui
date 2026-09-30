@@ -461,7 +461,7 @@ async function mount(root, host) {
   for (const name of Object.keys(tokens)) view.style.setProperty(name, tokens[name]);
   root.replaceChildren(style, view);
   const cssVar = (name) => view.style.getPropertyValue(name).trim();
-  let state = { ready: false, error: null, presets: [], dashboards: [] };
+  let state = { ready: false, error: null, workflows: [], dashboards: [] };
   let selected = null;
   let actionError = "";
   let pending = false;
@@ -478,8 +478,8 @@ async function mount(root, host) {
   const render = () => {
     if (disposed) return;
     const record = state.dashboards.find((candidate) => candidate.id === selected) ?? state.dashboards.at(-1);
-    const workflows = state.presets.map(
-      (preset) => `<button class="chip" data-preset="${esc(preset.id)}" title="${esc(preset.description)}" ${pending ? "disabled" : ""}>${esc(preset.label)}</button>`
+    const workflows = state.workflows.map(
+      (workflow) => `<button class="chip" data-workflow="${esc(workflow.id)}" title="${esc(workflow.description)}" ${pending ? "disabled" : ""}>${esc(workflow.label)}</button>`
     ).join("");
     const history = state.dashboards.map(
       (candidate) => `<button class="chip ${candidate.id === record?.id ? "on" : ""}" data-select="${esc(candidate.id)}">${esc(candidate.spec.title)}</button>`
@@ -490,7 +490,7 @@ async function mount(root, host) {
         ${record.spec.charts.map(chartCardHtml).join("")}
         ${record.spec.tables.map(tableHtml).join("")}
         <div class="prov">${esc(record.spec.source ?? "emitted dashboard")} \xB7 ${esc(
-      record.origin === "preset" ? "pre-configured workflow" : "emit_dashboard tool"
+      record.origin === "workflow" ? "pre-configured workflow" : "emit_dashboard tool"
     )} \xB7 ${esc(new Date(record.createdAt).toLocaleTimeString())}</div>` : `<div class="empty"><b>No dashboards yet.</b><br>Run a workflow above, type /dashboard in the
          composer, or ask the agent to publish data with the emit_dashboard tool.</div>`;
     view.innerHTML = `
@@ -512,7 +512,7 @@ async function mount(root, host) {
   const service = binding.use(Dashboards);
   view.addEventListener("click", (event) => {
     const target = event.target.closest(
-      "[data-preset],[data-select]"
+      "[data-workflow],[data-select]"
     );
     if (!target || pending || disposed) return;
     if (target.dataset.select) {
@@ -520,12 +520,12 @@ async function mount(root, host) {
       render();
       return;
     }
-    const presetId = target.dataset.preset;
+    const workflowId = target.dataset.workflow;
     const requestId = [...crypto.getRandomValues(new Uint8Array(16))].map((byte) => byte.toString(16).padStart(2, "0")).join("");
     pending = true;
     actionError = "";
     render();
-    service.emitPreset({ presetId, requestId }, BACKGROUND_CONTEXT).then((result) => {
+    service.emitWorkflow({ workflowId, requestId }, BACKGROUND_CONTEXT).then((result) => {
       selected = result.dashboardId;
     }).catch((reason) => {
       actionError = reason instanceof Error ? reason.message : String(reason);
