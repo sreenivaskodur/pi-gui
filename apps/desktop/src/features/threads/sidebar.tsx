@@ -382,6 +382,13 @@ export function Sidebar(props: SidebarProps) {
         onReset={() => setSidebarWidth(undefined)}
       />
       <div className="sidebar__top">
+        <div className="sidebar__brand">
+          <div className="sidebar__brand-mark">PE</div>
+          <div>
+            <div className="sidebar__brand-name">PE - IQ</div>
+            <div className="sidebar__brand-sub">Company brain</div>
+          </div>
+        </div>
         <button
           className="sidebar__new"
           type="button"
