@@ -351,4 +351,75 @@
   border-top: 1px solid var(--line);
   font-size: 11px;
   color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
+.cell-muted {
+  color: var(--muted);
+}
+
+.brain__folderbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 18px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--line);
+}
+.brain__folderbar-lab {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.brain__folder-path {
+  font-size: 11.5px;
+  color: var(--text);
+  background: var(--surface-muted);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 3px 8px;
+  max-width: 48ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.brain__folder-tag {
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.brain__link-btn {
+  font-size: 12px;
+  background: none;
+  border: 0;
+  color: var(--accent);
+  cursor: pointer;
+  padding: 4px 2px;
+  font: inherit;
+  font-size: 12px;
+}
+.brain__link-btn:hover {
+  text-decoration: underline;
+}
+.brain__link-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+  text-decoration: none;
+}
+.brain__empty {
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--radius-xl);
+  padding: 24px;
+  color: var(--text);
+  font-size: 13px;
+  max-width: 64ch;
+  line-height: 1.6;
+}
+.brain__empty b {
+  color: var(--text-strong);
 }

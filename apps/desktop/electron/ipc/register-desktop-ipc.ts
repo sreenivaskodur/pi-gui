@@ -10,6 +10,7 @@ import {
   ComposerAttachmentLimitError,
   type ClipboardImageRead,
 } from "../../contracts/composer-attachments";
+import type { BrainComputeResult, BrainFolderState, BrainReportKind } from "../../contracts/brain";
 import {
   desktopIpc,
   type ChangedFilesResult,
@@ -204,6 +205,12 @@ export interface DesktopIpcCapabilities {
     options: { readonly sourcePath?: string },
   ) => Promise<void>;
   readonly relaunchApplication: () => void;
+  readonly brainCompute: (
+    kind: BrainReportKind,
+    workspaceFolder: string | null,
+  ) => BrainComputeResult;
+  readonly brainPickDataFolder: (window: BrowserWindow) => Promise<BrainFolderState>;
+  readonly brainSetDataFolder: (folder: string | null) => BrainFolderState;
 }
 
 export interface RegisterDesktopIpcOptions {
@@ -294,6 +301,29 @@ export function registerDesktopIpc({
   ipcMain.handle(desktopIpc.relaunchApplication, (event) => {
     windows.windowForSender(event.sender);
     capabilities.relaunchApplication();
+  });
+  ipcMain.handle(
+    desktopIpc.brainCompute,
+    (event, rawKind: unknown, rawWorkspaceFolder: unknown) => {
+      windows.windowForSender(event.sender);
+      if (rawKind !== "portfolio" && rawKind !== "deals") {
+        throw new TypeError("kind must be portfolio or deals");
+      }
+      if (rawWorkspaceFolder !== null && typeof rawWorkspaceFolder !== "string") {
+        throw new TypeError("workspaceFolder must be a path string or null");
+      }
+      return capabilities.brainCompute(rawKind, rawWorkspaceFolder);
+    },
+  );
+  ipcMain.handle(desktopIpc.brainPickDataFolder, (event) =>
+    capabilities.brainPickDataFolder(senderWindow(windows, event)),
+  );
+  ipcMain.handle(desktopIpc.brainSetDataFolder, (event, rawFolder: unknown) => {
+    windows.windowForSender(event.sender);
+    if (rawFolder !== null && typeof rawFolder !== "string") {
+      throw new TypeError("folder must be an absolute path string or null");
+    }
+    return capabilities.brainSetDataFolder(rawFolder);
   });
   ipcMain.handle(desktopIpc.stateRequest, (event) =>
     owners.state.getStateForView(windows.viewForSender(event.sender)),

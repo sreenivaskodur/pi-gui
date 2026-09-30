@@ -31,6 +31,7 @@ import { performExtensionViewHostAction } from "./extensions/extension-view-acti
 import { extensionFrameDocument } from "./extensions/extension-frame-document";
 import { ReviewOwner } from "./workbench/review-owner";
 import { registerDesktopIpc } from "./ipc/register-desktop-ipc";
+import { BrainService } from "./brain/brain-service";
 import {
   createOrchestrationRuntimeExtension,
   createOrchestrationRuntimeTools,
@@ -838,6 +839,10 @@ app.setName("pi");
 const configuredUserDataDir = process.env.PI_APP_USER_DATA_DIR?.trim() || app.getPath("userData");
 app.setPath("userData", configuredUserDataDir);
 
+// The Portfolio and Deals pages read their CSVs from a working folder: the
+// folder the user picks, or the open workspace folder the renderer passes.
+const brainService = new BrainService(configuredUserDataDir);
+
 const hasSingleInstanceLock = app.requestSingleInstanceLock();
 if (!hasSingleInstanceLock) {
   // app.quit() before ready can leave a windowless macOS process alive.
@@ -1086,6 +1091,9 @@ app
         pickWorkspace: (window) => pickWorkspaceViaDialog(window),
         createLoginCallbacks: (window) => createRuntimeLoginCallbacks(window),
         probeCustomProviderModels,
+        brainCompute: (kind, workspaceFolder) => brainService.compute(kind, workspaceFolder),
+        brainPickDataFolder: (window) => brainService.pickFolder(window),
+        brainSetDataFolder: (folder) => brainService.setFolder(folder),
         notificationPermission: () => notificationPermissionService,
         terminal: getTerminalService,
         optionalTerminal: () => terminalService,

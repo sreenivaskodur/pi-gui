@@ -13,6 +13,7 @@ import type {
   SessionTreeSnapshot,
 } from "@pi-gui/session-driver/types";
 import type { ClipboardImageRead } from "./composer-attachments";
+import type { BrainComputeResult, BrainFolderState, BrainReportKind } from "./brain";
 import type { SessionRef } from "@pi-gui/session-driver/types";
 import type { SaveTaskWorkbenchTemplateInput, TaskWorkbenchTemplate } from "./workbench";
 import type {
@@ -193,6 +194,9 @@ export const desktopIpc = {
   ping: "app:ping",
   openExternal: "app:open-external",
   relaunchApplication: "pi-gui:relaunch-application",
+  brainCompute: "pi-gui:brain-compute",
+  brainPickDataFolder: "pi-gui:brain-pick-data-folder",
+  brainSetDataFolder: "pi-gui:brain-set-data-folder",
 } as const;
 
 export const desktopCommands = {
@@ -653,6 +657,9 @@ export interface PiDesktopApi {
   platform: NodeJS.Platform;
   versions: NodeJS.ProcessVersions;
   ping(): Promise<string>;
+  brainCompute(kind: BrainReportKind, workspaceFolder: string | null): Promise<BrainComputeResult>;
+  brainPickDataFolder(): Promise<BrainFolderState>;
+  brainSetDataFolder(folder: string | null): Promise<BrainFolderState>;
   getState(): Promise<DesktopAppState>;
   getTaskWorkbenchTemplate(target: SessionRef): Promise<TaskWorkbenchTemplate | null>;
   saveTaskWorkbenchTemplate(input: SaveTaskWorkbenchTemplateInput): Promise<void>;
