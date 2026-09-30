@@ -13,7 +13,12 @@ import type {
   SessionTreeSnapshot,
 } from "@pi-gui/session-driver/types";
 import type { ClipboardImageRead } from "./composer-attachments";
-import type { BrainComputeResult, BrainFolderState, BrainReportKind } from "./brain";
+import type {
+  BrainComputeResult,
+  BrainFolderState,
+  BrainModelSelection,
+  BrainReportKind,
+} from "./brain";
 import type { SessionRef } from "@pi-gui/session-driver/types";
 import type { SaveTaskWorkbenchTemplateInput, TaskWorkbenchTemplate } from "./workbench";
 import type {
@@ -661,6 +666,7 @@ export interface PiDesktopApi {
     kind: BrainReportKind,
     workspaceFolder: string | null,
     rerun?: boolean,
+    model?: BrainModelSelection | null,
   ): Promise<BrainComputeResult>;
   brainPickDataFolder(): Promise<BrainFolderState>;
   brainSetDataFolder(folder: string | null): Promise<BrainFolderState>;

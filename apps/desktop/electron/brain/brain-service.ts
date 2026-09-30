@@ -19,7 +19,9 @@ import {
   parseBrainPortfolio,
   type BrainComputeResult,
   type BrainFolderState,
+  type BrainModelSelection,
   type BrainReportKind,
+  type BrainTraceStep,
 } from "../../contracts/brain";
 
 /*
@@ -82,7 +84,11 @@ export class BrainService {
   async compute(
     kind: BrainReportKind,
     workspaceFolder: string | null,
-    options: { readonly rerun?: boolean; readonly signal?: AbortSignal } = {},
+    options: {
+      readonly rerun?: boolean;
+      readonly model?: BrainModelSelection | null;
+      readonly signal?: AbortSignal;
+    } = {},
   ): Promise<BrainComputeResult> {
     const folder = this.chosenFolder ?? workspaceFolder;
     const base: BrainComputeResult = { kind, folder, chosen: this.chosenFolder !== null };
@@ -94,7 +100,7 @@ export class BrainService {
       const cached = this.cache.get(key);
       if (cached) return cached;
     }
-    let snapshot: string;
+    let snapshot: { text: string; files: number };
     try {
       snapshot = this.snapshotFolder(folder);
     } catch (error) {
@@ -104,7 +110,8 @@ export class BrainService {
       { path: folder, workspaceId: folder },
       {
         systemPrompt: BRAIN_SYSTEM_PROMPT,
-        prompt: buildBrainPrompt(kind, snapshot),
+        prompt: buildBrainPrompt(kind, snapshot.text),
+        model: options.model ?? undefined,
         signal: options.signal,
       },
       { agentDir: this.agentDir },
@@ -112,15 +119,45 @@ export class BrainService {
     if (!reply.text) {
       return { ...base, error: reply.error ?? "The model returned no output." };
     }
+    const trace: BrainTraceStep[] = [
+      {
+        label: "Scanned working folder",
+        detail:
+          snapshot.files > 0
+            ? `${snapshot.files} data file${snapshot.files === 1 ? "" : "s"}, ${snapshot.text.length.toLocaleString()} chars`
+            : "no readable data files — generated demo data",
+      },
+      {
+        label: `Ran ${reply.model ?? "the model"}`,
+        detail: options.model ? "selected model" : "default model",
+      },
+    ];
+    if (reply.reasoning) {
+      trace.push({ label: "Model reasoning", detail: reply.reasoning.slice(0, 600) });
+    }
     let result: BrainComputeResult;
     try {
       const json = extractJsonObject(reply.text);
-      result =
-        kind === "portfolio"
-          ? { ...base, ranAt: new Date().toISOString(), portfolio: parseBrainPortfolio(json) }
-          : { ...base, ranAt: new Date().toISOString(), deals: parseBrainDeals(json) };
+      if (kind === "portfolio") {
+        const portfolio = parseBrainPortfolio(json);
+        const companies = portfolio.funds.reduce((sum, fund) => sum + fund.companies.length, 0);
+        trace.push({
+          label: "Parsed report",
+          detail: `${companies} companies across ${portfolio.funds.length} fund${portfolio.funds.length === 1 ? "" : "s"}`,
+        });
+        result = { ...base, ranAt: new Date().toISOString(), model: reply.model, trace, portfolio };
+      } else {
+        const deals = parseBrainDeals(json);
+        trace.push({ label: "Parsed report", detail: `${deals.deals.length} deals` });
+        result = { ...base, ranAt: new Date().toISOString(), model: reply.model, trace, deals };
+      }
     } catch (error) {
-      return { ...base, error: error instanceof Error ? error.message : String(error) };
+      return {
+        ...base,
+        model: reply.model,
+        trace,
+        error: error instanceof Error ? error.message : String(error),
+      };
     }
     this.cache.set(key, result);
     this.persistCache();
@@ -128,12 +165,12 @@ export class BrainService {
   }
 
   /** A bounded, readable snapshot of the folder's top-level data files. */
-  private snapshotFolder(folder: string): string {
+  private snapshotFolder(folder: string): { text: string; files: number } {
     let entries: string[];
     try {
       entries = readdirSync(folder);
     } catch {
-      return "";
+      return { text: "", files: 0 };
     }
     const parts: string[] = [];
     let total = 0;
@@ -159,7 +196,7 @@ export class BrainService {
       total += block.length;
       included += 1;
     }
-    return parts.join("\n\n").slice(0, MAX_SNAPSHOT_BYTES);
+    return { text: parts.join("\n\n").slice(0, MAX_SNAPSHOT_BYTES), files: included };
   }
 
   private restore(): void {

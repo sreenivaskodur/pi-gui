@@ -68,6 +68,16 @@ export interface BrainFolderState {
   readonly chosenFolder: string | null;
 }
 
+export interface BrainModelSelection {
+  readonly provider: string;
+  readonly modelId: string;
+}
+
+export interface BrainTraceStep {
+  readonly label: string;
+  readonly detail?: string;
+}
+
 export interface BrainComputeResult {
   readonly kind: BrainReportKind;
   /** The working folder the workflow analysed, or null if none is set. */
@@ -76,6 +86,10 @@ export interface BrainComputeResult {
   readonly chosen: boolean;
   /** ISO timestamp the workflow last produced this result. */
   readonly ranAt?: string;
+  /** The model that produced the result, e.g. "portalgun/claude-sonnet-5". */
+  readonly model?: string;
+  /** The steps the workflow took, shown as its trace. */
+  readonly trace?: readonly BrainTraceStep[];
   readonly portfolio?: BrainPortfolio;
   readonly deals?: BrainDeals;
   /** A human-readable reason the workflow could not produce a result. */

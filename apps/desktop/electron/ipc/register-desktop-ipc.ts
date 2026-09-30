@@ -10,7 +10,25 @@ import {
   ComposerAttachmentLimitError,
   type ClipboardImageRead,
 } from "../../contracts/composer-attachments";
-import type { BrainComputeResult, BrainFolderState, BrainReportKind } from "../../contracts/brain";
+import type {
+  BrainComputeResult,
+  BrainFolderState,
+  BrainModelSelection,
+  BrainReportKind,
+} from "../../contracts/brain";
+
+function parseBrainModel(value: unknown): BrainModelSelection | null {
+  if (value === null || value === undefined) return null;
+  if (
+    typeof value !== "object" ||
+    typeof (value as { provider?: unknown }).provider !== "string" ||
+    typeof (value as { modelId?: unknown }).modelId !== "string"
+  ) {
+    throw new TypeError("model must be { provider, modelId } or null");
+  }
+  const model = value as { provider: string; modelId: string };
+  return { provider: model.provider, modelId: model.modelId };
+}
 import {
   desktopIpc,
   type ChangedFilesResult,
@@ -209,6 +227,7 @@ export interface DesktopIpcCapabilities {
     kind: BrainReportKind,
     workspaceFolder: string | null,
     rerun: boolean,
+    model: BrainModelSelection | null,
   ) => Promise<BrainComputeResult>;
   readonly brainPickDataFolder: (window: BrowserWindow) => Promise<BrainFolderState>;
   readonly brainSetDataFolder: (folder: string | null) => BrainFolderState;
@@ -305,7 +324,13 @@ export function registerDesktopIpc({
   });
   ipcMain.handle(
     desktopIpc.brainCompute,
-    (event, rawKind: unknown, rawWorkspaceFolder: unknown, rawRerun: unknown) => {
+    (
+      event,
+      rawKind: unknown,
+      rawWorkspaceFolder: unknown,
+      rawRerun: unknown,
+      rawModel: unknown,
+    ) => {
       windows.windowForSender(event.sender);
       if (rawKind !== "portfolio" && rawKind !== "deals") {
         throw new TypeError("kind must be portfolio or deals");
@@ -313,7 +338,12 @@ export function registerDesktopIpc({
       if (rawWorkspaceFolder !== null && typeof rawWorkspaceFolder !== "string") {
         throw new TypeError("workspaceFolder must be a path string or null");
       }
-      return capabilities.brainCompute(rawKind, rawWorkspaceFolder, rawRerun === true);
+      return capabilities.brainCompute(
+        rawKind,
+        rawWorkspaceFolder,
+        rawRerun === true,
+        parseBrainModel(rawModel),
+      );
     },
   );
   ipcMain.handle(desktopIpc.brainPickDataFolder, (event) =>

@@ -33,6 +33,10 @@ export interface AgentOneShotDeps {
 
 export interface AgentOneShotResult {
   readonly text: string | null;
+  /** The model that produced the reply, e.g. "portalgun/claude-sonnet-5". */
+  readonly model?: string;
+  /** Reasoning/thinking the model emitted, if any, for a trace. */
+  readonly reasoning?: string;
   /** A reason the reply could not be produced, for surfacing to the user. */
   readonly error?: string;
 }
@@ -88,8 +92,13 @@ export async function generateAgentReply(
   options.signal?.addEventListener("abort", handleAbort, { once: true });
   try {
     if (!session.model) return { text: null, error: "No model is available." };
+    const modelLabel = `${session.model.provider}/${session.model.id}`;
     await session.prompt(options.prompt, { source: "interactive" });
-    return { text: extractLastAssistantText(session) };
+    return {
+      text: extractLastAssistantText(session),
+      model: modelLabel,
+      reasoning: extractReasoning(session),
+    };
   } catch (error) {
     return { text: null, error: error instanceof Error ? error.message : String(error) };
   } finally {
@@ -112,6 +121,25 @@ function createOneShotResourceLoader(systemPrompt: string): ResourceLoader {
     extendResources: () => {},
     reload: async () => {},
   };
+}
+
+/** Collects reasoning/thinking parts the model emitted across assistant turns. */
+function extractReasoning(session: { messages: readonly unknown[] }): string {
+  const chunks: string[] = [];
+  for (const message of session.messages) {
+    if (typeof message !== "object" || message === null) continue;
+    if ((message as { role?: unknown }).role !== "assistant") continue;
+    const content = (message as { content?: unknown }).content;
+    if (!Array.isArray(content)) continue;
+    for (const part of content) {
+      if (typeof part !== "object" || part === null) continue;
+      const type = (part as { type?: unknown }).type;
+      if (type !== "reasoning" && type !== "thinking") continue;
+      const text = (part as { text?: unknown }).text;
+      if (typeof text === "string" && text.trim()) chunks.push(text.trim());
+    }
+  }
+  return chunks.join("\n\n");
 }
 
 function extractLastAssistantText(session: { messages: readonly unknown[] }): string {

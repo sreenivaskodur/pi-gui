@@ -1069,9 +1069,17 @@ export default function App() {
 
         <>
           {snapshot.activeView === "portfolio" ? (
-            <PortfolioPage api={api} workspaceFolder={selectedWorkspace?.path ?? null} />
+            <PortfolioPage
+              api={api}
+              workspaceFolder={selectedWorkspace?.path ?? null}
+              runtime={selectedModelRuntime}
+            />
           ) : snapshot.activeView === "deals" ? (
-            <DealsPage api={api} workspaceFolder={selectedWorkspace?.path ?? null} />
+            <DealsPage
+              api={api}
+              workspaceFolder={selectedWorkspace?.path ?? null}
+              runtime={selectedModelRuntime}
+            />
           ) : snapshot.activeView === "agents" ? (
             <AgentsPage
               scheduledTasks={snapshot.scheduledTasks}

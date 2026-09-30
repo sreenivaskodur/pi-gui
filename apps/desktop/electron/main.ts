@@ -1098,8 +1098,8 @@ app
         pickWorkspace: (window) => pickWorkspaceViaDialog(window),
         createLoginCallbacks: (window) => createRuntimeLoginCallbacks(window),
         probeCustomProviderModels,
-        brainCompute: (kind, workspaceFolder, rerun) =>
-          brainService.compute(kind, workspaceFolder, { rerun }),
+        brainCompute: (kind, workspaceFolder, rerun, model) =>
+          brainService.compute(kind, workspaceFolder, { rerun, model }),
         brainPickDataFolder: (window) => brainService.pickFolder(window),
         brainSetDataFolder: (folder) => brainService.setFolder(folder),
         notificationPermission: () => notificationPermissionService,

@@ -26,7 +26,12 @@ import {
   type TerminalSize,
 } from "../contracts/ipc";
 import type { ClipboardImageRead } from "../contracts/composer-attachments";
-import type { BrainComputeResult, BrainFolderState, BrainReportKind } from "../contracts/brain";
+import type {
+  BrainComputeResult,
+  BrainFolderState,
+  BrainModelSelection,
+  BrainReportKind,
+} from "../contracts/brain";
 import type { SaveTaskWorkbenchTemplateInput, TaskWorkbenchTemplate } from "../contracts/workbench";
 import type {
   TurnChangesInput,
@@ -103,12 +108,18 @@ contextBridge.exposeInMainWorld("piApp", {
   platform: process.platform,
   versions: process.versions,
   ping: () => ipcRenderer.invoke(desktopIpc.ping) as Promise<string>,
-  brainCompute: (kind: BrainReportKind, workspaceFolder: string | null, rerun?: boolean) =>
+  brainCompute: (
+    kind: BrainReportKind,
+    workspaceFolder: string | null,
+    rerun?: boolean,
+    model?: BrainModelSelection | null,
+  ) =>
     ipcRenderer.invoke(
       desktopIpc.brainCompute,
       kind,
       workspaceFolder,
       rerun ?? false,
+      model ?? null,
     ) as Promise<BrainComputeResult>,
   brainPickDataFolder: () =>
     ipcRenderer.invoke(desktopIpc.brainPickDataFolder) as Promise<BrainFolderState>,
