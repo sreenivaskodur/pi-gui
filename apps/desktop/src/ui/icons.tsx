@@ -215,6 +215,93 @@ export function FolderIcon() {
   );
 }
 
+export function AskIcon() {
+  return (
+    <Icon>
+      <rect
+        x="2.5"
+        y="3.75"
+        width="15"
+        height="12.5"
+        rx="3"
+        stroke="currentColor"
+        strokeWidth="1.5"
+      />
+      <path
+        d="M5.75 8.25h8.5M5.75 11.25h5"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeWidth="1.5"
+      />
+    </Icon>
+  );
+}
+
+export function PortfolioIcon() {
+  return (
+    <Icon>
+      <rect
+        x="2.5"
+        y="6.75"
+        width="15"
+        height="9.5"
+        rx="2"
+        stroke="currentColor"
+        strokeWidth="1.5"
+      />
+      <path
+        d="M7 6.75V5.5a1.5 1.5 0 0 1 1.5-1.5h3A1.5 1.5 0 0 1 13 5.5v1.25"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeWidth="1.5"
+      />
+    </Icon>
+  );
+}
+
+export function DealsIcon() {
+  return (
+    <Icon>
+      <path
+        d="M3 15.5l4.25-4.75 3.5 3L17 6.5"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="1.5"
+      />
+      <path
+        d="M13 6.5h4v4"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="1.5"
+      />
+    </Icon>
+  );
+}
+
+export function AgentsIcon() {
+  return (
+    <Icon>
+      <rect
+        x="3.5"
+        y="6.5"
+        width="13"
+        height="10"
+        rx="2.5"
+        stroke="currentColor"
+        strokeWidth="1.5"
+      />
+      <path
+        d="M10 3v3M7 10.5v1.25M13 10.5v1.25"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeWidth="1.5"
+      />
+    </Icon>
+  );
+}
+
 export function FileIcon() {
   return (
     <Icon>

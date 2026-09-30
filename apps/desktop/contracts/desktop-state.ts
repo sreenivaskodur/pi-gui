@@ -20,7 +20,16 @@ export type {
   UpdateScheduledTaskInput,
 } from "./scheduled-tasks";
 
-export type AppView = "threads" | "new-thread" | "scheduled" | "skills" | "extensions" | "settings";
+export type AppView =
+  | "threads"
+  | "new-thread"
+  | "scheduled"
+  | "skills"
+  | "extensions"
+  | "settings"
+  | "portfolio"
+  | "deals"
+  | "agents";
 export type WorkspaceKind = "primary" | "worktree";
 export type WorktreeStatus = "ready" | "missing" | "error";
 export type NewThreadEnvironment = "local" | "worktree";

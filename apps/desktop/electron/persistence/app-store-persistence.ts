@@ -495,7 +495,10 @@ function toAppView(value: unknown): AppView | undefined {
     value === "scheduled" ||
     value === "skills" ||
     value === "extensions" ||
-    value === "settings"
+    value === "settings" ||
+    value === "portfolio" ||
+    value === "deals" ||
+    value === "agents"
     ? value
     : undefined;
 }

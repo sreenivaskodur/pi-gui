@@ -66,6 +66,17 @@ export function Topbar({
             <span className="topbar__separator">/</span>
             <span className="topbar__session">New thread</span>
           </>
+        ) : activeView === "portfolio" || activeView === "deals" || activeView === "agents" ? (
+          <>
+            <span className="topbar__separator">/</span>
+            <span className="topbar__session">
+              {activeView === "portfolio"
+                ? "Portfolio"
+                : activeView === "deals"
+                  ? "Deals"
+                  : "Agents"}
+            </span>
+          </>
         ) : null}
       </div>
       <div className="topbar__actions">

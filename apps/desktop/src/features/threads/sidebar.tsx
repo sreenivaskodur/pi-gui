@@ -39,13 +39,17 @@ import type {
 import {
   ArchiveIcon,
   CheckIcon,
+  AgentsIcon,
+  AskIcon,
   ChevronDownIcon,
   ChevronRightIcon,
   CustomizeSidebarIcon,
+  DealsIcon,
   ExtensionIcon,
   FolderIcon,
   PinIcon,
   PlusIcon,
+  PortfolioIcon,
   RestoreIcon,
   SettingsIcon,
   WorktreeIcon,
@@ -401,32 +405,36 @@ export function Sidebar(props: SidebarProps) {
 
         <div className="sidebar__nav">
           <button
-            className={`sidebar__nav-item ${activeView === "threads" ? "sidebar__nav-item--active" : ""}`}
+            className={`sidebar__nav-item ${activeView === "threads" || activeView === "new-thread" ? "sidebar__nav-item--active" : ""}`}
             type="button"
             onClick={() => onSetActiveView("threads")}
           >
-            <FolderIcon />
-            <span>Threads</span>
+            <AskIcon />
+            <span>Ask</span>
           </button>
           <button
-            className="sidebar__nav-item"
+            className={`sidebar__nav-item ${activeView === "portfolio" ? "sidebar__nav-item--active" : ""}`}
             type="button"
-            onClick={() =>
-              onOpenExtensions(selectedWorkspace?.rootWorkspaceId ?? selectedWorkspace?.id)
-            }
+            onClick={() => onSetActiveView("portfolio")}
           >
-            <ExtensionIcon />
-            <span>Extensions</span>
+            <PortfolioIcon />
+            <span>Portfolio</span>
           </button>
           <button
-            className="sidebar__nav-item"
+            className={`sidebar__nav-item ${activeView === "deals" ? "sidebar__nav-item--active" : ""}`}
             type="button"
-            onClick={() =>
-              onOpenSettings(selectedWorkspace?.rootWorkspaceId ?? selectedWorkspace?.id)
-            }
+            onClick={() => onSetActiveView("deals")}
           >
-            <SettingsIcon />
-            <span>Settings</span>
+            <DealsIcon />
+            <span>Deals</span>
+          </button>
+          <button
+            className={`sidebar__nav-item ${activeView === "agents" ? "sidebar__nav-item--active" : ""}`}
+            type="button"
+            onClick={() => onSetActiveView("agents")}
+          >
+            <AgentsIcon />
+            <span>Agents</span>
           </button>
         </div>
       </div>
@@ -621,6 +629,29 @@ export function Sidebar(props: SidebarProps) {
             </ThreadShortcutContext.Provider>
           </DndContext>
         )}
+      </div>
+
+      <div className="sidebar__foot">
+        <button
+          className="sidebar__nav-item"
+          type="button"
+          onClick={() =>
+            onOpenExtensions(selectedWorkspace?.rootWorkspaceId ?? selectedWorkspace?.id)
+          }
+        >
+          <ExtensionIcon />
+          <span>Extensions</span>
+        </button>
+        <button
+          className="sidebar__nav-item"
+          type="button"
+          onClick={() =>
+            onOpenSettings(selectedWorkspace?.rootWorkspaceId ?? selectedWorkspace?.id)
+          }
+        >
+          <SettingsIcon />
+          <span>Settings</span>
+        </button>
       </div>
     </aside>
   );

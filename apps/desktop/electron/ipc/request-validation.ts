@@ -132,7 +132,10 @@ export function expectAppView(value: unknown, name = "view"): AppView {
     value !== "scheduled" &&
     value !== "skills" &&
     value !== "extensions" &&
-    value !== "settings"
+    value !== "settings" &&
+    value !== "portfolio" &&
+    value !== "deals" &&
+    value !== "agents"
   ) {
     throw new TypeError(`${name} must be a supported app view`);
   }

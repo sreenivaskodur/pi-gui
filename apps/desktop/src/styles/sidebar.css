@@ -51,6 +51,13 @@
   padding: 12px;
 }
 
+.sidebar__foot {
+  padding: 8px 12px 12px;
+  border-top: 1px solid var(--line);
+  display: grid;
+  gap: 2px;
+}
+
 .sidebar__top {
   padding-top: var(--titlebar-inset-top);
 }

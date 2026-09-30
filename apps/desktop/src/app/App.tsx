@@ -63,6 +63,7 @@ import { Topbar } from "./topbar";
 import { TerminalPanel } from "../features/workbench/terminal-panel";
 import { ConversationTimeline } from "../features/conversation/conversation-timeline";
 import { ScheduledTasksView } from "../features/scheduled-tasks/scheduled-tasks-view";
+import { AgentsPage, DealsPage, PortfolioPage } from "../features/brain/brain-pages";
 import {
   ScheduledTaskEditor,
   type ScheduledEditorState,
@@ -1041,7 +1042,13 @@ export default function App() {
         ) : null}
 
         <>
-          {snapshot.activeView === "scheduled" ? (
+          {snapshot.activeView === "portfolio" ? (
+            <PortfolioPage />
+          ) : snapshot.activeView === "deals" ? (
+            <DealsPage />
+          ) : snapshot.activeView === "agents" ? (
+            <AgentsPage />
+          ) : snapshot.activeView === "scheduled" ? (
             <ScheduledTasksView
               tasks={snapshot.scheduledTasks}
               lastError={snapshot.lastError}

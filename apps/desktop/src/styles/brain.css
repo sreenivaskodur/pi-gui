@@ -1,0 +1,354 @@
+/*
+ * Brain pages (Portfolio, Deals, Agents) — the True Wind reporting layout,
+ * rendered from the active theme's tokens so it tracks light and dark. Blue
+ * (--accent) carries the subject; grey carries the reference; status colours
+ * always ship with an icon or a label.
+ */
+.brain {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  background: var(--main);
+  color: var(--text-strong);
+}
+.brain__pad {
+  padding: 26px 30px 60px;
+  max-width: 1180px;
+}
+.brain__head {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+.brain__head .grow {
+  flex: 1;
+  min-width: 0;
+}
+.brain__head h1 {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+.brain__head p {
+  margin: 4px 0 0;
+  color: var(--text);
+  font-size: 13px;
+  max-width: 70ch;
+}
+.brain__asof {
+  font-size: 11.5px;
+  color: var(--text);
+  background: var(--surface-muted);
+  padding: 4px 9px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  white-space: nowrap;
+}
+
+.brain__stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+  margin-bottom: 18px;
+}
+@media (max-width: 1080px) {
+  .brain__stats {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+.brain__stat {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-xl);
+  padding: 14px 16px;
+  min-width: 0;
+}
+.brain__stat .k {
+  font-size: 11.5px;
+  color: var(--muted);
+}
+.brain__stat .v {
+  font-size: 25px;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  margin-top: 3px;
+  line-height: 1.15;
+}
+.brain__stat .d {
+  font-size: 12px;
+  margin-top: 4px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.brain__stat .d.up {
+  color: var(--success-ink);
+}
+.brain__stat .d.down {
+  color: var(--error-ink);
+}
+.brain__stat .d.flat {
+  color: var(--muted);
+}
+
+.brain__card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-xl);
+  padding: 16px 18px;
+  min-width: 0;
+  margin-bottom: 16px;
+}
+.brain__card-head {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 2px;
+}
+.brain__card-head .grow {
+  flex: 1;
+  min-width: 0;
+}
+.brain__card-head h2 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+.brain__card-sub {
+  font-size: 12px;
+  color: var(--muted);
+  margin: 2px 0 14px;
+}
+
+.brain__tbl {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+.brain__tbl th {
+  text-align: right;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+  padding: 0 10px 8px;
+  border-bottom: 1px solid var(--line);
+  white-space: nowrap;
+}
+.brain__tbl th:first-child,
+.brain__tbl td:first-child {
+  text-align: left;
+  padding-left: 0;
+}
+.brain__tbl th:last-child,
+.brain__tbl td:last-child {
+  padding-right: 0;
+}
+.brain__tbl td {
+  text-align: right;
+  padding: 9px 10px;
+  border-bottom: 1px solid var(--line);
+}
+.brain__tbl tr:last-child td {
+  border-bottom: 0;
+}
+.brain__tbl tr.subtotal td {
+  border-top: 1px solid var(--line-strong);
+  font-weight: 600;
+}
+.brain__tbl tbody tr.click {
+  cursor: pointer;
+}
+.brain__tbl tbody tr.click:hover td {
+  background: var(--surface-muted);
+}
+.num-pos {
+  color: var(--success-ink);
+}
+.num-neg {
+  color: var(--error-ink);
+}
+
+.co-cell {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.co-logo {
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: #fff;
+}
+
+.brain__grid {
+  display: grid;
+  gap: 14px;
+}
+.brain__grid.cards {
+  grid-template-columns: repeat(2, 1fr);
+}
+@media (max-width: 900px) {
+  .brain__grid.cards {
+    grid-template-columns: 1fr;
+  }
+}
+
+.deal-card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-xl);
+  padding: 16px 18px;
+  text-align: left;
+  width: 100%;
+  cursor: default;
+}
+.deal-card__top {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+.deal-card__logo {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  font-size: 11px;
+  font-weight: 700;
+  color: #fff;
+}
+.deal-card__metrics {
+  display: flex;
+  gap: 22px;
+  margin-top: 14px;
+}
+.deal-card__metrics .k {
+  font-size: 11px;
+  color: var(--muted);
+}
+.deal-card__metrics .v {
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+.stages {
+  display: flex;
+  gap: 3px;
+  margin-top: 14px;
+}
+.stage-seg {
+  flex: 1;
+  text-align: center;
+}
+.stage-seg .rulebar {
+  height: 4px;
+  border-radius: 2px;
+  background: var(--surface-muted);
+}
+.stage-seg.done .rulebar {
+  background: color-mix(in srgb, var(--accent) 45%, var(--surface));
+}
+.stage-seg.now .rulebar {
+  background: var(--accent);
+}
+.stage-seg .lab {
+  font-size: 10.5px;
+  color: var(--muted);
+  margin-top: 6px;
+  white-space: nowrap;
+}
+.stage-seg.now .lab {
+  color: var(--text-strong);
+  font-weight: 600;
+}
+
+.brain__pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11.5px;
+  font-weight: 550;
+  padding: 3px 9px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--surface-muted);
+  color: var(--text);
+  white-space: nowrap;
+}
+.brain__pill .ic {
+  font-size: 10px;
+}
+.brain__pill.good {
+  color: var(--success-ink);
+  border-color: color-mix(in srgb, var(--success) 35%, var(--line));
+  background: color-mix(in srgb, var(--success) 9%, var(--surface));
+}
+.brain__pill.warning {
+  color: var(--warning-ink);
+  border-color: color-mix(in srgb, var(--warning) 45%, var(--line));
+  background: color-mix(in srgb, var(--warning) 14%, var(--surface));
+}
+.brain__pill.serious {
+  color: var(--warning-ink);
+  border-color: color-mix(in srgb, var(--warning) 45%, var(--line));
+  background: color-mix(in srgb, var(--warning) 16%, var(--surface));
+}
+.brain__pill.critical {
+  color: var(--error-ink);
+  border-color: color-mix(in srgb, var(--error) 35%, var(--line));
+  background: color-mix(in srgb, var(--error) 9%, var(--surface));
+}
+
+.agent-row {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--line);
+}
+.agent-row:last-child {
+  border-bottom: 0;
+}
+.agent-row .grow {
+  flex: 1;
+  min-width: 0;
+}
+.agent-row__icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  background: var(--surface-muted);
+  border: 1px solid var(--line);
+  color: var(--accent);
+}
+.agent-row__title {
+  font-weight: 550;
+}
+.agent-row__note {
+  color: var(--text);
+  font-size: 12.5px;
+  margin-top: 3px;
+}
+.brain__prov {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+  font-size: 11px;
+  color: var(--muted);
+}
