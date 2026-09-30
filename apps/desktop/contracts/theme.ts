@@ -207,9 +207,11 @@ export function deriveThemeTokens(seedValue: ThemeSeed, variant: ResolvedTheme):
     fadeWithContrast(ink, s, pick(lightAmount, darkAmount), minContrast, sidebar);
   const tint = (lightAmount: number, darkAmount: number): string =>
     mix(s, ink, pick(lightAmount, darkAmount));
-  const sidebar = light ? tint(0.04, 0) : mix(s, "#000000", 0.17);
+  // The rail sits on a sunk tone well below the main surface, with the window
+  // frame a step below that again.
+  const sidebar = light ? tint(0.085, 0) : mix(s, "#000000", 0.17);
 
-  const window = light ? tint(0.07, 0) : mix(s, "#000000", 0.28);
+  const window = light ? tint(0.11, 0) : mix(s, "#000000", 0.28);
   const main = s;
   const elevated = light ? mix(s, "#ffffff", 0.4) : tint(0, 0.025);
   const surfaceMuted = tint(0.04, 0.055);
@@ -252,6 +254,7 @@ export function deriveThemeTokens(seedValue: ThemeSeed, variant: ResolvedTheme):
     "--success-ink": mix(added, ink, pick(0.4, 0.35)),
     "--warning": warning,
     "--warning-ink": warningInk,
+    "--ring": alpha(ink, 0.09),
     "--surface-overlay": alpha(ink, pick(0.025, 0.04)),
     "--surface-overlay-hover": alpha(ink, pick(0.05, 0.07)),
     "--surface-overlay-border": alpha(ink, 0.12),
