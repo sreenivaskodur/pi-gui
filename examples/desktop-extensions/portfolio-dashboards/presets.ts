@@ -12,12 +12,15 @@ const cell = (text: string, tone?: TableCell["tone"]): TableCell =>
 
 const money0 = (v: number) => `$${Math.round(v)}M`;
 const money1 = (v: number) => `$${v.toFixed(1)}M`;
-const signedPct = (v: number) => `${v >= 0 ? "+" : "−"}${Math.abs(v).toFixed(1)}%`;
+const signed = (v: number) => `${v >= 0 ? "+" : "−"}${Math.abs(v).toFixed(1)}`;
+const signedPct = (v: number) => `${signed(v)}%`;
+// The suffix carries the unit ("% vs budget", " pts vs hurdle"), so the
+// number itself is unsigned of any unit.
 const deltaOf = (
   v: number,
   suffix = "% vs budget",
 ): { text: string; tone: "up" | "down" | "flat" } => ({
-  text: `${signedPct(v)}${suffix}`,
+  text: `${signed(v)}${suffix}`,
   tone: Math.abs(v) < 0.5 ? "flat" : v >= 0 ? "up" : "down",
 });
 
