@@ -1,5 +1,10 @@
 import { expect, test, type Page } from "@playwright/test";
-import { launchDesktop, makeUserDataDir, makeWorkspace } from "../helpers/electron-app";
+import {
+  launchDesktop,
+  makeUserDataDir,
+  makeWorkspace,
+  openViewFromPalette,
+} from "../helpers/electron-app";
 
 interface ControlLayout {
   readonly top: number;
@@ -39,7 +44,11 @@ test("Back to app lines up with New thread below the window buttons", async ({},
     await window.screenshot({ path: testInfo.outputPath("threads.png") });
 
     for (const view of ["Settings", "Skills", "Extensions"] as const) {
-      await window.getByRole("button", { name: view, exact: true }).click();
+      if (view === "Skills") {
+        await openViewFromPalette(window, "Skills");
+      } else {
+        await window.getByRole("button", { name: view, exact: true }).click();
+      }
       const back = window.getByRole("button", { name: "Back to app", exact: true });
       await expect(back).toBeVisible();
       await window.screenshot({ path: testInfo.outputPath(`${view.toLowerCase()}.png`) });

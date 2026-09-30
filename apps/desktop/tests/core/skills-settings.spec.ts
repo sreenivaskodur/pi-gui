@@ -7,6 +7,7 @@ import {
   launchDesktop,
   makeUserDataDir,
   makeWorkspace,
+  openViewFromPalette,
 } from "../helpers/electron-app";
 
 test("shows skills and settings surfaces from runtime data", async () => {
@@ -37,7 +38,7 @@ Use this skill when the user wants a short demo workflow.
     const window = await harness.firstWindow();
     await createNamedThread(window, "Skill test session");
 
-    await window.getByRole("button", { name: "Skills", exact: true }).click();
+    await openViewFromPalette(window, "Skills");
     await expect(window.getByTestId("skills-surface")).toBeVisible();
     await expect(window.getByTestId("skills-list")).toContainText("Demo Skill");
     await window.getByRole("button", { name: /Demo Skill/i }).click();

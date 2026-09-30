@@ -9,6 +9,7 @@ import {
   launchDesktop,
   makeUserDataDir,
   makeWorkspace,
+  openViewFromPalette,
   seedAgentDir,
 } from "../helpers/electron-app";
 import { SCHEDULED_TASK_INTERVIEW_PROMPT } from "../../contracts/scheduled-tasks";
@@ -23,7 +24,7 @@ test("manual create, tabs, pause, and restart keep scheduled tasks", async () =>
   });
   try {
     const window = await first.firstWindow();
-    await window.getByTestId("sidebar-scheduled").click();
+    await openViewFromPalette(window, "Scheduled tasks");
     await expect(window.getByTestId("scheduled-tasks-view")).toBeVisible();
     await window.getByTestId("scheduled-task-create").click();
     await window.getByTestId("scheduled-task-setup-manually").click();
@@ -56,7 +57,7 @@ test("manual create, tabs, pause, and restart keep scheduled tasks", async () =>
   });
   try {
     const window = await second.firstWindow();
-    await window.getByTestId("sidebar-scheduled").click();
+    await openViewFromPalette(window, "Scheduled tasks");
     await expect(window.getByTestId("scheduled-task-row")).toContainText("Standup ping");
     await expect(window.getByTestId("scheduled-task-row")).toContainText("Paused");
     expect((await getDesktopState(window)).scheduledTasks[0]?.status).toBe("paused");
@@ -75,7 +76,7 @@ test("create with pi prefills the interview draft and does not send", async () =
   });
   try {
     const window = await harness.firstWindow();
-    await window.getByTestId("sidebar-scheduled").click();
+    await openViewFromPalette(window, "Scheduled tasks");
     await window.getByTestId("scheduled-task-create").click();
     await window.getByTestId("scheduled-task-create-with-pi").click();
     await expect(window.getByTestId("composer")).toHaveValue(SCHEDULED_TASK_INTERVIEW_PROMPT, {
@@ -357,7 +358,7 @@ test("past once create is rejected and title-only edit keeps timezone and nextRu
       timeZone: "America/Los_Angeles",
     });
 
-    await window.getByTestId("sidebar-scheduled").click();
+    await openViewFromPalette(window, "Scheduled tasks");
     await window.getByTestId("scheduled-task-row").click();
     await expect(window.getByTestId("scheduled-task-editor")).toBeVisible();
     await window.getByTestId("scheduled-task-title").fill("Editor renamed morning ping");

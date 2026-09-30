@@ -963,7 +963,6 @@ export default function App() {
             )
           }
           onSetActiveView={setActiveView}
-          onOpenSkills={openSkills}
           onOpenExtensions={openExtensions}
           onOpenSettings={openSettings}
           onArchiveSession={threadMenu.archive}

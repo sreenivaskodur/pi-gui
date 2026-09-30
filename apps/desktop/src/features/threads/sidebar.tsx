@@ -48,8 +48,6 @@ import {
   PlusIcon,
   RestoreIcon,
   SettingsIcon,
-  SkillIcon,
-  ClockIcon,
   WorktreeIcon,
 } from "../../ui/icons";
 import {
@@ -97,7 +95,6 @@ interface SidebarProps {
   ) => Promise<DesktopAppState>;
   readonly onNewThread: (workspaceId?: string) => void;
   readonly onSetActiveView: (view: AppView) => void;
-  readonly onOpenSkills: (workspaceId?: string) => void;
   readonly onOpenExtensions: (workspaceId?: string) => void;
   readonly onOpenSettings: (workspaceId?: string) => void;
   readonly onArchiveSession: (target: { workspaceId: string; sessionId: string }) => void;
@@ -146,7 +143,6 @@ export function Sidebar(props: SidebarProps) {
     updateSnapshot,
     onNewThread,
     onSetActiveView,
-    onOpenSkills,
     onOpenExtensions,
     onOpenSettings,
     onArchiveSession,
@@ -404,25 +400,6 @@ export function Sidebar(props: SidebarProps) {
           >
             <FolderIcon />
             <span>Threads</span>
-          </button>
-          <button
-            className={`sidebar__nav-item ${activeView === "scheduled" ? "sidebar__nav-item--active" : ""}`}
-            type="button"
-            data-testid="sidebar-scheduled"
-            onClick={() => onSetActiveView("scheduled")}
-          >
-            <ClockIcon />
-            <span>Scheduled</span>
-          </button>
-          <button
-            className="sidebar__nav-item"
-            type="button"
-            onClick={() =>
-              onOpenSkills(selectedWorkspace?.rootWorkspaceId ?? selectedWorkspace?.id)
-            }
-          >
-            <SkillIcon />
-            <span>Skills</span>
           </button>
           <button
             className="sidebar__nav-item"

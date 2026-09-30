@@ -16,7 +16,7 @@ import type {
   WorkspaceRecord,
 } from "../../contracts/desktop-state";
 import { resolvePackagedAppExecutable } from "./packaged-app";
-import { TINY_PNG_BASE64 } from "./native-input";
+import { desktopShortcut, TINY_PNG_BASE64 } from "./native-input";
 
 export {
   copyAppBundle,
@@ -1884,6 +1884,25 @@ export async function startThreadViaIpc(
     },
   );
   await expect(window.getByTestId("composer")).toBeVisible({ timeout: 15_000 });
+}
+
+/**
+ * Opens a view by running its command-palette action. Scheduled tasks and
+ * Skills are reached this way since the sidebar nav no longer lists them.
+ */
+export async function openViewFromPalette(
+  window: Page,
+  action: "Scheduled tasks" | "Skills",
+): Promise<void> {
+  await window.keyboard.press(desktopShortcut("K"));
+  const palette = window.getByTestId("command-palette");
+  await expect(palette).toBeVisible();
+  await window.getByTestId("command-palette-input").fill(action);
+  // Scope to the Actions section: chat and workspace names can match the
+  // query too (e.g. a "skills-settings-workspace" thread for "Skills").
+  const actions = palette.getByRole("group", { name: "Actions" });
+  await actions.getByRole("option").filter({ hasText: action }).first().click();
+  await expect(palette).not.toBeVisible();
 }
 
 export async function createNamedThread(

@@ -6,6 +6,7 @@ import {
   launchDesktop,
   makeUserDataDir,
   makeWorkspace,
+  openViewFromPalette,
   runScheduledTaskRuntimeTool,
 } from "../helpers/electron-app";
 
@@ -49,7 +50,7 @@ test("create_scheduled_task tool writes the same catalog the list UI reads", asy
       params: {},
     });
     expect(listed.content[0]?.text).toContain("Tool ping");
-    await window.getByTestId("sidebar-scheduled").click();
+    await openViewFromPalette(window, "Scheduled tasks");
     await expect(window.getByTestId("scheduled-task-row")).toContainText("Tool ping");
     await expect(window.getByTestId("scheduled-task-row")).toContainText("Every 15 minutes");
   } finally {

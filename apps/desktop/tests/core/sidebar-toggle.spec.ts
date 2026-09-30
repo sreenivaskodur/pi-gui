@@ -7,6 +7,7 @@ import {
   launchDesktop,
   makeUserDataDir,
   makeWorkspace,
+  openViewFromPalette,
   waitForWorkspaceByPath,
 } from "../helpers/electron-app";
 
@@ -172,7 +173,7 @@ test("toggles and persists the primary sidebar from the button and keyboard shor
     await window.getByRole("button", { name: "Back to app", exact: true }).click();
 
     await restoreSidebarIfNeeded(window);
-    await window.getByRole("button", { name: "Skills", exact: true }).click();
+    await openViewFromPalette(window, "Skills");
     await expectSecondaryTakeover(window, "skills-surface");
     await writeTakeoverProof(window, "skills-light.png");
     await window.keyboard.press(desktopShortcut("B"));
@@ -193,7 +194,7 @@ test("toggles and persists the primary sidebar from the button and keyboard shor
     await writeTakeoverProof(window, "settings-dark.png");
     await window.getByRole("button", { name: "Back to app", exact: true }).click();
 
-    await window.getByRole("button", { name: "Skills", exact: true }).click();
+    await openViewFromPalette(window, "Skills");
     await expectSecondaryTakeover(window, "skills-surface");
     await writeTakeoverProof(window, "skills-dark.png");
     await window.getByRole("button", { name: "Back to app", exact: true }).click();
