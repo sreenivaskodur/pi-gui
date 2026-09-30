@@ -64,6 +64,7 @@ import { TerminalPanel } from "../features/workbench/terminal-panel";
 import { ConversationTimeline } from "../features/conversation/conversation-timeline";
 import { ScheduledTasksView } from "../features/scheduled-tasks/scheduled-tasks-view";
 import { AgentsPage, DealsPage, PortfolioPage } from "../features/brain/brain-pages";
+import { AskHome } from "../features/brain/ask-home";
 import {
   ScheduledTaskEditor,
   type ScheduledEditorState,
@@ -113,6 +114,9 @@ export default function App() {
     readonly request: DiffPanelFileRequest;
   } | null>(null);
   const [scheduledEditor, setScheduledEditor] = useState<ScheduledEditorState | null>(null);
+  // Ask lands on the home hero: clicking Ask forces it even when a thread is
+  // selected; opening a thread (or composing a new one) clears it.
+  const [askHomeForced, setAskHomeForced] = useState(false);
   const api = window.piApp;
 
   useEffect(() => {
@@ -782,11 +786,17 @@ export default function App() {
     slashMenu.fillComposerFromSlash(command);
   };
 
+  const openAskHome = () => {
+    setAskHomeForced(true);
+    setActiveView("threads");
+  };
+
   const handleSelectSession = (target: { workspaceId: string; sessionId: string }) => {
     // Flush any debounced draft write before the active session changes, otherwise the pending
     // write for the current session is lost (and would land on the wrong session if deferred).
     flushComposerDraft();
     viewport.savePosition();
+    setAskHomeForced(false);
     if (target.workspaceId === selectedWorkspace?.id && target.sessionId === selectedSession?.id)
       focusComposer();
     void updateSnapshot(setSnapshot, () => api.selectSession(target)).catch((error: unknown) => {
@@ -794,6 +804,16 @@ export default function App() {
     });
   };
   selectThreadRef.current = handleSelectSession;
+
+  // The Ask home offers the most recent non-archived threads to jump back into.
+  const recentAskThreads = visibleWorkspaces
+    .flatMap((workspace) =>
+      workspace.sessions
+        .filter((session) => !session.archivedAt)
+        .map((session) => ({ workspaceId: workspace.id, session })),
+    )
+    .sort((left, right) => right.session.updatedAt.localeCompare(left.session.updatedAt))
+    .slice(0, 4);
 
   const handleRespondToExtensionDialog = (
     response:
@@ -964,6 +984,7 @@ export default function App() {
             )
           }
           onSetActiveView={setActiveView}
+          onOpenAsk={openAskHome}
           onOpenExtensions={openExtensions}
           onOpenSettings={openSettings}
           onArchiveSession={threadMenu.archive}
@@ -988,10 +1009,15 @@ export default function App() {
           panelVisible={sidePanelVisible}
           onTogglePanel={commands.toggleSidePanel}
           sessionTitle={
-            snapshot.activeView === "threads" && selectedSession ? displayedSessionTitle : undefined
+            snapshot.activeView === "threads" && selectedSession && !askHomeForced
+              ? displayedSessionTitle
+              : undefined
           }
         >
-          {snapshot.activeView === "threads" && selectedWorkspace && selectedSession ? (
+          {snapshot.activeView === "threads" &&
+          selectedWorkspace &&
+          selectedSession &&
+          !askHomeForced ? (
             <>
               <div className="chat-header__status">
                 {selectedSession.status === "running"
@@ -1125,7 +1151,7 @@ export default function App() {
                 </div>
               </section>
             )
-          ) : selectedWorkspace && selectedSession ? (
+          ) : selectedWorkspace && selectedSession && !askHomeForced ? (
             <>
               <section className="canvas canvas--thread">
                 <div className="conversation conversation--thread">
@@ -1266,38 +1292,16 @@ export default function App() {
                 />
               ) : null}
             </>
-          ) : selectedWorkspace ? (
-            <section className="canvas canvas--empty">
-              <div className="empty-panel">
-                <div className="session-header__eyebrow">Workspace</div>
-                <h1>{selectedWorkspace.name}</h1>
-                <p>Create a thread for this folder, then jump between sessions from the sidebar.</p>
-                <div className="empty-panel__actions">
-                  <button
-                    className="button button--primary"
-                    type="button"
-                    onClick={() =>
-                      newThread.openSurface(
-                        selectedWorkspace?.rootWorkspaceId ?? selectedWorkspace?.id,
-                      )
-                    }
-                  >
-                    New thread
-                  </button>
-                </div>
-              </div>
-            </section>
           ) : (
-            <section className="canvas canvas--empty">
-              <div className="empty-panel">
-                <div className="session-header__eyebrow">Workspace</div>
-                <h1>Open a folder to start</h1>
-                <p>
-                  Add project folders, group sessions under them, and jump between threads from the
-                  sidebar.
-                </p>
-              </div>
-            </section>
+            <AskHome
+              selectedWorkspace={selectedWorkspace}
+              recentThreads={recentAskThreads}
+              onNewThread={() =>
+                newThread.openSurface(selectedWorkspace?.rootWorkspaceId ?? selectedWorkspace?.id)
+              }
+              onOpenView={setActiveView}
+              onSelectSession={handleSelectSession}
+            />
           )}
         </>
         {sidePanelVisible && selectedWorkspace && selectedSession ? (

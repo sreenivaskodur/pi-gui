@@ -99,6 +99,7 @@ interface SidebarProps {
   ) => Promise<DesktopAppState>;
   readonly onNewThread: (workspaceId?: string) => void;
   readonly onSetActiveView: (view: AppView) => void;
+  readonly onOpenAsk: () => void;
   readonly onOpenExtensions: (workspaceId?: string) => void;
   readonly onOpenSettings: (workspaceId?: string) => void;
   readonly onArchiveSession: (target: { workspaceId: string; sessionId: string }) => void;
@@ -147,6 +148,7 @@ export function Sidebar(props: SidebarProps) {
     updateSnapshot,
     onNewThread,
     onSetActiveView,
+    onOpenAsk,
     onOpenExtensions,
     onOpenSettings,
     onArchiveSession,
@@ -407,7 +409,7 @@ export function Sidebar(props: SidebarProps) {
           <button
             className={`sidebar__nav-item ${activeView === "threads" || activeView === "new-thread" ? "sidebar__nav-item--active" : ""}`}
             type="button"
-            onClick={() => onSetActiveView("threads")}
+            onClick={onOpenAsk}
           >
             <AskIcon />
             <span>Ask</span>
